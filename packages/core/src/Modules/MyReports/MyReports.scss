@@ -1,0 +1,101 @@
+.my-reports__container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.my-reports__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.my-reports__title {
+    margin: 0;
+    color: #333;
+}
+
+.my-reports__account-selector {
+    display: flex;
+    gap: 8px;
+}
+
+.my-reports__tab {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 1.5px solid #e6e6e6;
+    background: #fff;
+    color: #666;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+        border-color: #00a79e;
+        color: #00a79e;
+    }
+
+    &--active {
+        background: #00a79e;
+        border-color: #00a79e;
+        color: #fff;
+        font-weight: 600;
+    }
+}
+
+// Login Prompt
+.my-reports__login-prompt {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+}
+
+.my-reports__login-card {
+    max-width: 500px;
+    padding: 40px;
+    text-align: center;
+}
+
+.my-reports__login-title {
+    margin-bottom: 16px;
+}
+
+.my-reports__login-text {
+    color: #666;
+}
+
+// Loading
+.my-reports__loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+    text-align: center;
+}
+
+// No Trades
+.my-reports__no-trades {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+}
+
+.my-reports__no-trades-card {
+    max-width: 500px;
+    padding: 40px;
+    text-align: center;
+}
+
+.my-reports__no-trades-title {
+    margin-bottom: 16px;
+}
+
+.my-reports__no-trades-text {
+    color: #666;
+}

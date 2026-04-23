@@ -1,0 +1,398 @@
+/* Deriv official color scheme */
+/* Primary red: #ff444f */
+/* Dark bg: #0e0e0e */
+/* Secondary dark: #151717 */
+/* Border: #242828 */
+/* Text muted: #999 */
+
+@keyframes marquee {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(-33.33%);
+    }
+}
+
+.dpa-navbar {
+    position: sticky;
+    top: 56px;
+    z-index: 1001;
+    background: #0e0e0e;
+    border-bottom: 1px solid #242828;
+
+    /* ── Announcement Bar ────────────────────────────── */
+    &__announcement {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #ff444f;
+        height: 32px;
+        overflow: hidden;
+        padding-right: 16px;
+    }
+
+    &__marquee {
+        flex: 1;
+        overflow: hidden;
+        white-space: nowrap;
+
+        span {
+            display: inline-block;
+            animation: marquee 40s linear infinite;
+            font-size: 12px;
+            color: #fff;
+            font-weight: 500;
+            padding-left: 100%;
+        }
+    }
+
+    &__countdown {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    &__countdown-label {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.8);
+    }
+
+    &__countdown-time {
+        font-size: 12px;
+        font-weight: 700;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 2px 8px;
+        border-radius: 4px;
+    }
+
+    /* ── Main Bar ────────────────────────────────────── */
+    &__main {
+        display: flex;
+        align-items: center;
+        height: 56px;
+        gap: 0;
+    }
+
+    /* ── Logo ────────────────────────────────────────── */
+    &__logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 20px;
+        cursor: pointer;
+        flex-shrink: 0;
+        border-right: 1px solid #242828;
+        height: 100%;
+
+        &:hover {
+            opacity: 0.85;
+        }
+    }
+
+    &__logo-icon {
+        width: 36px;
+        height: 36px;
+        background: #ff444f;
+        color: #fff;
+        font-size: 18px;
+        font-weight: 800;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    &__logo-text {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.2;
+
+        .name {
+            font-size: 14px;
+            font-weight: 800;
+            color: #fff;
+        }
+
+        .academy {
+            font-size: 10px;
+            font-weight: 600;
+            color: #ff444f;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+    }
+
+    /* ── Scrollable Links ────────────────────────────── */
+    &__links {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        overflow-x: auto;
+        scroll-behavior: smooth;
+        gap: 2px;
+        padding: 0 8px;
+        height: 100%;
+        cursor: grab;
+        user-select: none;
+
+        /* Hide scrollbar but keep functionality */
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        &::-webkit-scrollbar {
+            display: none;
+        }
+
+        &.dragging {
+            cursor: grabbing;
+        }
+    }
+
+    &__link {
+        display: flex;
+        align-items: center;
+        height: 56px;
+        padding: 0 14px;
+        background: none;
+        border: none;
+        border-bottom: 2px solid transparent;
+        color: #999;
+        font-size: 13px;
+        font-weight: 500;
+        white-space: nowrap;
+        cursor: pointer;
+        transition:
+            color 0.15s,
+            border-color 0.15s;
+        flex-shrink: 0;
+
+        &:hover {
+            color: #fff;
+            border-bottom-color: #ff444f44;
+        }
+
+        &.active {
+            color: #ff444f;
+            border-bottom-color: #ff444f;
+            font-weight: 600;
+        }
+    }
+
+    /* ── Auth ────────────────────────────────────────── */
+    &__auth {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 16px;
+        flex-shrink: 0;
+        border-left: 1px solid #242828;
+        height: 100%;
+    }
+
+    &__account {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        line-height: 1.3;
+        padding: 4px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 1px solid transparent;
+        opacity: 0.6;
+
+        &:hover {
+            opacity: 0.9;
+        }
+
+        &--active {
+            opacity: 1;
+            border-color: rgba(255, 255, 255, 0.25);
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        &--funded {
+            .dpa-navbar__account-type {
+                color: #e8a000;
+            }
+            &.dpa-navbar__account--active {
+                border-color: rgba(232, 160, 0, 0.5);
+                background: rgba(232, 160, 0, 0.1);
+            }
+        }
+
+        &--deriv {
+            .dpa-navbar__account-type {
+                color: #85acb0;
+            }
+        }
+    }
+
+    &__account-type {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+    }
+
+    &__account-balance {
+        font-size: 13px;
+        font-weight: 700;
+        color: #fff;
+    }
+}
+
+/* ── DPA Account Switcher ─────────────────────────────────────────────────────── */
+.dpa-acc-switcher {
+    position: relative;
+
+    &__trigger {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition: background 0.2s;
+        &:hover {
+            background: rgba(255, 255, 255, 0.06);
+        }
+    }
+
+    &__icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 700;
+        flex-shrink: 0;
+
+        &--real {
+            background: #2a9d8f;
+            color: #fff;
+        }
+        &--demo {
+            background: #444;
+            color: #fff;
+        }
+        &--funded {
+            background: #e8a000;
+            color: #1a1a1a;
+        }
+    }
+
+    &__info {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        line-height: 1.3;
+    }
+
+    &__type {
+        font-size: 10px;
+        font-weight: 700;
+        color: #aaa;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+    }
+
+    &__balance {
+        font-size: 13px;
+        font-weight: 700;
+        color: #fff;
+    }
+
+    &__dropdown {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        background: #1e2528;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        min-width: 260px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        z-index: 1000;
+        overflow: hidden;
+        padding: 8px 0;
+    }
+
+    &__section-title {
+        font-size: 10px;
+        font-weight: 700;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        padding: 8px 16px 4px;
+    }
+
+    &__item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 16px;
+        cursor: pointer;
+        transition: background 0.15s;
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        &--active {
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        &--funded {
+            .dpa-acc-switcher__item-type {
+                color: #e8a000;
+            }
+        }
+
+        &--funded-cta {
+            opacity: 0.75;
+            .dpa-acc-switcher__item-type {
+                color: #e8a000;
+            }
+            &:hover {
+                opacity: 1;
+                background: rgba(232, 160, 0, 0.08);
+            }
+        }
+    }
+
+    &__item-balance--cta {
+        color: #e8a000 !important;
+        font-size: 11px !important;
+        font-weight: 600 !important;
+    }
+
+    &__item-info {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        line-height: 1.4;
+    }
+
+    &__item-type {
+        font-size: 11px;
+        color: #aaa;
+    }
+
+    &__item-balance {
+        font-size: 13px;
+        font-weight: 700;
+        color: #fff;
+    }
+
+    &__check {
+        flex-shrink: 0;
+    }
+}

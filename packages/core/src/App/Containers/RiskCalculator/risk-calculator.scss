@@ -1,0 +1,328 @@
+.dpa-calc {
+    min-height: 100vh;
+    background: #f5f5f5;
+
+    &__banner {
+        background: linear-gradient(135deg, #800000 0%, #5a0000 60%, #3a0000 100%);
+    }
+
+    &__banner-inner {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 48px 32px;
+    }
+
+    &__banner-tag {
+        display: inline-block;
+        background: rgba(255, 215, 0, 0.2);
+        color: #ffd700;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        padding: 4px 12px;
+        border-radius: 20px;
+        border: 1px solid rgba(255, 215, 0, 0.4);
+        margin-bottom: 14px;
+    }
+
+    &__banner-title {
+        font-size: 40px;
+        font-weight: 900;
+        color: #fff;
+        margin: 0 0 12px;
+    }
+
+    &__banner-sub {
+        font-size: 16px;
+        color: rgba(255, 255, 255, 0.75);
+        margin: 0;
+        max-width: 560px;
+        line-height: 1.6;
+    }
+
+    &__content {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 40px 32px 80px;
+
+        @media (max-width: 768px) {
+            padding: 24px 16px 60px;
+        }
+    }
+
+    &__layout {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        margin-bottom: 40px;
+
+        @media (max-width: 860px) {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    &__panel,
+    &__results-panel {
+        background: #fff;
+        border-radius: 14px;
+        padding: 28px;
+        box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
+        border: 1px solid #e8e8e8;
+    }
+
+    &__panel-title {
+        font-size: 18px;
+        font-weight: 800;
+        color: #1a1a1a;
+        margin: 0 0 24px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid #f0f0f0;
+    }
+
+    &__field {
+        margin-bottom: 20px;
+    }
+
+    &__label {
+        display: block;
+        font-size: 13px;
+        font-weight: 700;
+        color: #555;
+        margin-bottom: 8px;
+    }
+
+    &__label-hint {
+        font-weight: 400;
+        color: #aaa;
+    }
+
+    &__input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        color: #1a1a1a;
+        outline: none;
+        box-sizing: border-box;
+        background: #fafafa;
+
+        &:focus {
+            border-color: #800000;
+            background: #fff;
+        }
+    }
+
+    &__range-wrap {
+        margin-top: 10px;
+    }
+
+    &__range {
+        width: 100%;
+        accent-color: #800000;
+        cursor: pointer;
+    }
+
+    &__range-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11px;
+        color: #aaa;
+        margin-top: 4px;
+    }
+
+    &__suggestion {
+        background: rgba(128, 0, 0, 0.06);
+        border: 1px solid rgba(128, 0, 0, 0.15);
+        border-radius: 8px;
+        padding: 12px 16px;
+        font-size: 13px;
+        color: #555;
+        margin-bottom: 20px;
+
+        strong {
+            color: #800000;
+        }
+    }
+
+    &__actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    &__btn {
+        flex: 1;
+        padding: 13px;
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        border: none;
+        transition: all 0.15s;
+
+        &--primary {
+            background: #800000;
+            color: #fff;
+            &:hover {
+                background: #5a0000;
+            }
+        }
+
+        &--secondary {
+            background: #f5f5f5;
+            color: #555;
+            border: 1px solid #e0e0e0;
+            &:hover {
+                background: #efefef;
+            }
+        }
+    }
+
+    // ── Results ───────────────────────────────────────────────────────────
+    &__results-placeholder {
+        text-align: center;
+        padding: 40px 20px;
+        color: #aaa;
+
+        &-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        p {
+            font-size: 14px;
+            color: #888;
+            line-height: 1.6;
+        }
+    }
+
+    &__results {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    &__result-card {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 16px;
+        background: #fafafa;
+        border-radius: 10px;
+        border: 1px solid #f0f0f0;
+
+        &--risk {
+            background: rgba(198, 40, 40, 0.04);
+            border-color: rgba(198, 40, 40, 0.15);
+        }
+        &--profit {
+            background: rgba(46, 125, 50, 0.04);
+            border-color: rgba(46, 125, 50, 0.15);
+        }
+    }
+
+    &__result-icon {
+        font-size: 24px;
+        flex-shrink: 0;
+    }
+
+    &__result-body {
+        flex: 1;
+    }
+
+    &__result-label {
+        font-size: 12px;
+        color: #888;
+        margin-bottom: 3px;
+    }
+
+    &__result-value {
+        font-size: 20px;
+        font-weight: 800;
+        color: #1a1a1a;
+    }
+
+    &__risk-indicator {
+        margin-top: 8px;
+        padding: 16px;
+        background: #fafafa;
+        border-radius: 10px;
+        border: 1px solid #f0f0f0;
+    }
+
+    &__risk-label {
+        font-size: 12px;
+        font-weight: 700;
+        color: #888;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    &__risk-bar-wrap {
+        height: 10px;
+        background: #f0f0f0;
+        border-radius: 5px;
+        overflow: hidden;
+        margin-bottom: 8px;
+    }
+
+    &__risk-bar {
+        height: 100%;
+        border-radius: 5px;
+        transition: width 0.4s ease;
+    }
+
+    &__risk-gauge-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    // ── Tips ──────────────────────────────────────────────────────────────
+    &__tips {
+        background: #fff;
+        border-radius: 14px;
+        padding: 28px;
+        box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
+        border: 1px solid #e8e8e8;
+    }
+
+    &__tips-title {
+        font-size: 18px;
+        font-weight: 800;
+        color: #1a1a1a;
+        margin: 0 0 20px;
+    }
+
+    &__tips-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 14px;
+    }
+
+    &__tip {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px 16px;
+        background: #fafafa;
+        border-radius: 10px;
+        border: 1px solid #f0f0f0;
+    }
+
+    &__tip-icon {
+        font-size: 18px;
+        flex-shrink: 0;
+        margin-top: 1px;
+    }
+
+    &__tip-text {
+        font-size: 13px;
+        color: #555;
+        line-height: 1.55;
+    }
+}

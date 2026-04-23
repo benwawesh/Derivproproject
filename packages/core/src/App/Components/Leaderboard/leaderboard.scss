@@ -1,0 +1,234 @@
+.dpa-leaderboard {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px 16px;
+    font-family: 'IBM Plex Sans', sans-serif;
+
+    &__loading,
+    &__error {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+    }
+
+    &__error {
+        color: #dc3545;
+    }
+
+    &__header {
+        margin-bottom: 24px;
+    }
+
+    &__title-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 8px;
+
+        h1 {
+            color: #800000;
+            font-size: 1.8rem;
+            margin: 0;
+        }
+    }
+
+    &__live-dot {
+        color: #28a745;
+        font-size: 0.8rem;
+        font-weight: 700;
+        animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+        0%,
+        100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.4;
+        }
+    }
+
+    &__meta {
+        display: flex;
+        gap: 16px;
+        font-size: 0.85rem;
+        color: #888;
+
+        .period {
+            font-weight: 600;
+            color: #800000;
+        }
+    }
+
+    &__prizes {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 24px;
+
+        @media (max-width: 600px) {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .prize-card {
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+
+        &.funded {
+            background: linear-gradient(135deg, #800000, #600000);
+            color: #fff;
+        }
+
+        &.double {
+            background: linear-gradient(135deg, #28a745, #1e7e34);
+            color: #fff;
+        }
+
+        .prize-rank {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.8;
+            margin-bottom: 4px;
+        }
+
+        .prize-name {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .prize-amount {
+            font-size: 1.4rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .prize-condition {
+            font-size: 0.75rem;
+            opacity: 0.8;
+        }
+    }
+
+    &__table-wrapper {
+        overflow-x: auto;
+        border-radius: 12px;
+        border: 1px solid #e0e0e0;
+    }
+
+    &__table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+
+        thead tr {
+            background: #800000;
+            color: #fff;
+
+            th {
+                padding: 12px 10px;
+                text-align: left;
+                font-weight: 600;
+                white-space: nowrap;
+            }
+        }
+
+        tbody tr {
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.15s;
+
+            &:hover {
+                background: #fafafa;
+            }
+
+            &.top-three {
+                background: #fff9e6;
+            }
+            &.top-ten td:first-child {
+                font-weight: 700;
+            }
+
+            td {
+                padding: 12px 10px;
+                color: #333;
+                white-space: nowrap;
+            }
+        }
+    }
+
+    .rank {
+        font-weight: 700;
+        text-align: center;
+    }
+
+    .medal {
+        font-size: 1.2rem;
+    }
+
+    .login-id {
+        font-family: monospace;
+        color: #800000;
+        font-weight: 600;
+    }
+
+    .profit {
+        color: #28a745;
+        font-weight: 600;
+    }
+    .loss {
+        color: #dc3545;
+        font-weight: 600;
+    }
+
+    .pct {
+        font-size: 0.75rem;
+        opacity: 0.7;
+        margin-left: 4px;
+    }
+
+    .trade-breakdown {
+        display: flex;
+        gap: 8px;
+        .buy {
+            color: #28a745;
+            font-weight: 600;
+        }
+        .sell {
+            color: #dc3545;
+            font-weight: 600;
+        }
+    }
+
+    .bot-name {
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: #800000;
+        font-weight: 600;
+    }
+
+    .prize-badge {
+        color: #fff;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+
+    &__empty {
+        text-align: center;
+        padding: 40px;
+        color: #888;
+    }
+
+    &__footer {
+        text-align: center;
+        font-size: 0.75rem;
+        color: #aaa;
+        margin-top: 16px;
+    }
+}
