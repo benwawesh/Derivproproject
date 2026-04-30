@@ -1,0 +1,69 @@
+.dpa-tabbar {
+    position: sticky;
+    top: 40px;
+    z-index: 1001;
+    background: var(--general-section-1);
+    display: flex;
+    align-items: flex-end;
+    height: 4.8rem;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    cursor: grab;
+    user-select: none;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
+
+    &--dragging {
+        cursor: grabbing;
+    }
+
+    &__tab {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 4.8rem;
+        padding: 0 2.4rem;
+        background: transparent;
+        border: none;
+        border-top-left-radius: 1rem;
+        border-top-right-radius: 1rem;
+        color: var(--text-general);
+        font-size: 1.2rem;
+        font-weight: 400;
+        white-space: nowrap;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition:
+            background 0.15s,
+            color 0.15s;
+
+        &:hover {
+            color: var(--text-prominent);
+            background: var(--general-hover);
+        }
+
+        &--active {
+            background: var(--general-main-1);
+            color: var(--text-prominent);
+            font-weight: 700;
+        }
+    }
+
+    &__separator {
+        width: 1px;
+        height: 2rem;
+        background: var(--general-section-2);
+        flex-shrink: 0;
+        align-self: center;
+        margin: 0 0.4rem;
+    }
+}
+
+/* Hide bot's internal tab list — DPATabBar is the global navigation */
+.dc-tabs--main__tabs .dc-tabs__list,
+.dc-tabs__list--header--main__tabs {
+    display: none !important;
+}

@@ -1,0 +1,1316 @@
+/**
+ * MarketAnalysisTool styles — dark theme
+ * BEM root: .mat
+ */
+
+.mat {
+    width: 100%;
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 24px 20px 60px;
+    font-family: 'Segoe UI', 'Tahoma', 'Geneva', 'Verdana', sans-serif;
+    background: #121212;
+    color: #e0e0e0;
+    min-height: 100vh;
+
+    // ── Header ──────────────────────────────────────────────────────────────
+    &__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    &__title {
+        font-size: 26px;
+        font-weight: 700;
+        color: #fff;
+        margin: 0 0 4px;
+    }
+
+    &__subtitle {
+        font-size: 13px;
+        color: #888;
+        margin: 0;
+    }
+
+    &__status {
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        align-self: center;
+
+        &--disconnected {
+            background: #1e1e1e;
+            color: #666;
+            border: 1px solid #333;
+        }
+        &--connecting {
+            background: #2a2000;
+            color: #ffb300;
+            border: 1px solid #5a4000;
+        }
+        &--analyzing {
+            background: #002a10;
+            color: #00e676;
+            border: 1px solid #005a20;
+            animation: pulse-status 2s ease-in-out infinite;
+        }
+    }
+
+    // ── Controls ─────────────────────────────────────────────────────────────
+    &__controls {
+        background: #1e1e1e;
+        border: 1px solid #2a2a2a;
+        border-radius: 12px;
+        padding: 20px 24px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        align-items: flex-end;
+        margin-bottom: 20px;
+    }
+
+    &__ctrl-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+
+        &--action {
+            margin-left: auto;
+            justify-content: flex-end;
+        }
+    }
+
+    &__ctrl-label {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #666;
+    }
+
+    // ── Tabs ─────────────────────────────────────────────────────────────────
+    &__tabs {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    &__tab {
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        border: 1px solid #333;
+        border-radius: 6px;
+        background: #252525;
+        color: #aaa;
+        cursor: pointer;
+        transition: all 0.15s;
+
+        &:hover {
+            background: #2e2e2e;
+            color: #fff;
+        }
+
+        &--active {
+            background: #00a8ff;
+            color: #fff;
+            border-color: #00a8ff;
+        }
+    }
+
+    // ── Tick windows ─────────────────────────────────────────────────────────
+    &__windows-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+
+    &__window-chip {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        background: #1a2a3a;
+        border: 1px solid #00a8ff44;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 700;
+        color: #00a8ff;
+    }
+
+    &__window-chip-remove {
+        background: none;
+        border: none;
+        color: #ef5350;
+        cursor: pointer;
+        font-size: 15px;
+        line-height: 1;
+        padding: 0;
+        display: flex;
+        align-items: center;
+
+        &:hover {
+            color: #ff8a80;
+        }
+    }
+
+    &__window-add {
+        display: flex;
+        gap: 6px;
+    }
+
+    &__window-input {
+        width: 90px;
+        padding: 6px 10px;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 6px;
+        color: #fff;
+        font-size: 13px;
+        outline: none;
+
+        &:focus {
+            border-color: #00a8ff;
+        }
+    }
+
+    &__window-add-btn {
+        padding: 6px 12px;
+        background: #1a3a1a;
+        border: 1px solid #00e67644;
+        border-radius: 6px;
+        color: #00e676;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.15s;
+
+        &:hover {
+            background: #003a10;
+        }
+    }
+
+    // ── Buttons ───────────────────────────────────────────────────────────────
+    &__btn {
+        padding: 11px 32px;
+        font-size: 15px;
+        font-weight: 700;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+
+        &--start {
+            background: #00a8ff;
+            color: #fff;
+            &:hover:not(:disabled) {
+                background: #33bbff;
+                transform: translateY(-1px);
+            }
+            &:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+        }
+
+        &--stop {
+            background: #ef5350;
+            color: #fff;
+            &:hover {
+                background: #ff6659;
+                transform: translateY(-1px);
+            }
+        }
+    }
+
+    // ── Best market card ──────────────────────────────────────────────────────
+    &__best-card {
+        background: linear-gradient(135deg, #001a0a 0%, #002a14 100%);
+        border: 1px solid #00e67655;
+        border-radius: 14px;
+        padding: 20px 24px;
+        margin-bottom: 20px;
+        display: flex;
+        gap: 20px;
+        align-items: flex-start;
+        animation: fadeIn 0.4s ease;
+
+        &__badge {
+            background: #00e676;
+            color: #000;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 4px 10px;
+            border-radius: 20px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            align-self: flex-start;
+        }
+
+        &__body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        &__market {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+        }
+
+        &__symbol {
+            font-size: 22px;
+            font-weight: 800;
+            color: #00e676;
+        }
+
+        &__name {
+            font-size: 14px;
+            color: #888;
+        }
+
+        &__signal {
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        &__meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+        }
+
+        &__confidence {
+            font-size: 12px;
+            font-weight: 800;
+            color: #000;
+            padding: 3px 10px;
+            border-radius: 20px;
+        }
+
+        &__score {
+            font-size: 14px;
+            color: #ccc;
+        }
+        &__entry {
+            font-size: 14px;
+            color: #ccc;
+            font-family: 'Courier New', monospace;
+        }
+
+        &__reason {
+            font-size: 12px;
+            color: #888;
+            line-height: 1.5;
+            font-style: italic;
+        }
+    }
+
+    // ── Placeholder ───────────────────────────────────────────────────────────
+    &__placeholder {
+        text-align: center;
+        padding: 80px 20px;
+        color: #444;
+
+        &__icon {
+            font-size: 60px;
+            margin-bottom: 16px;
+        }
+
+        p {
+            font-size: 16px;
+            color: #666;
+            b {
+                color: #00a8ff;
+            }
+        }
+    }
+
+    // ── View tabs ─────────────────────────────────────────────────────────────
+    &__view-tabs {
+        display: flex;
+        gap: 4px;
+        border-bottom: 2px solid #252525;
+        margin-bottom: 20px;
+    }
+
+    &__view-tab {
+        padding: 10px 20px;
+        font-size: 13px;
+        font-weight: 600;
+        border: none;
+        background: none;
+        color: #666;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+        transition: all 0.15s;
+
+        &:hover {
+            color: #ccc;
+        }
+
+        &--active {
+            color: #00a8ff;
+            border-bottom-color: #00a8ff;
+        }
+    }
+
+    // ── Rankings table ────────────────────────────────────────────────────────
+    &__table-wrap {
+        background: #1e1e1e;
+        border: 1px solid #2a2a2a;
+        border-radius: 12px;
+        overflow-x: auto;
+        padding: 0;
+    }
+
+    &__table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        min-width: 900px;
+
+        thead tr {
+            background: #252525;
+
+            th {
+                padding: 12px 10px;
+                text-align: center;
+                font-size: 11px;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                color: #666;
+                border-bottom: 1px solid #333;
+                white-space: nowrap;
+            }
+        }
+
+        tbody tr {
+            cursor: pointer;
+            transition: background 0.15s;
+            border-bottom: 1px solid #252525;
+
+            &:hover {
+                background: #252525;
+            }
+
+            td {
+                padding: 11px 10px;
+                text-align: center;
+            }
+        }
+    }
+
+    &__table-row {
+        &--selected {
+            background: #00a8ff12 !important;
+        }
+        &--best td:first-child {
+            color: #ffd700;
+        }
+    }
+
+    &__rank {
+        font-size: 16px;
+        width: 40px;
+    }
+
+    &__market-cell {
+        text-align: left !important;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 11px 12px !important;
+    }
+
+    &__sym {
+        font-weight: 700;
+        color: #00a8ff;
+        font-size: 14px;
+    }
+    &__mname {
+        font-size: 11px;
+        color: #555;
+    }
+
+    &__price {
+        font-family: 'Courier New', monospace;
+        font-weight: 600;
+        color: #fff;
+        white-space: nowrap;
+    }
+
+    &__signal {
+        font-weight: 700;
+        color: #ffb300;
+        white-space: nowrap;
+    }
+
+    &__confidence-badge {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 800;
+        color: #000;
+        padding: 2px 8px;
+        border-radius: 12px;
+    }
+
+    &__entry-spot {
+        font-family: 'Courier New', monospace;
+        color: #00e676;
+        font-size: 12px;
+    }
+
+    &__table-hint {
+        padding: 10px 16px;
+        font-size: 12px;
+        color: #444;
+        text-align: center;
+        border-top: 1px solid #252525;
+        margin: 0;
+    }
+
+    // ── Detail view ───────────────────────────────────────────────────────────
+    &__detail {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    &__detail-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    &__market-select {
+        padding: 10px 14px;
+        background: #1e1e1e;
+        border: 1px solid #333;
+        border-radius: 8px;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 600;
+        outline: none;
+        cursor: pointer;
+
+        &:focus {
+            border-color: #00a8ff;
+        }
+
+        option {
+            background: #1e1e1e;
+        }
+    }
+
+    &__detail-price {
+        font-family: 'Courier New', monospace;
+        font-size: 22px;
+        font-weight: 700;
+        color: #00e676;
+    }
+
+    // ── Circles panel (digits mode) ───────────────────────────────────────────
+    &__circles-panel {
+        background: #1e1e1e;
+        border: 1px solid #2a2a2a;
+        border-radius: 12px;
+        padding: 20px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+
+        &__header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        &__title {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #555;
+        }
+
+        &__price {
+            font-family: 'Courier New', monospace;
+            font-size: 22px;
+            font-weight: 800;
+            color: #fff;
+        }
+    }
+
+    // Digit circles row
+    &__circles-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 6px;
+        flex-wrap: nowrap;
+
+        @media (max-width: 700px) {
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+    }
+
+    &__circle-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    &__circle-arrow {
+        font-size: 12px;
+        color: #ef5350;
+        line-height: 1;
+        animation: bounce-arrow 0.6s ease infinite alternate;
+    }
+
+    &__circle {
+        width: 100%;
+        aspect-ratio: 1;
+        max-width: 80px;
+        border-radius: 50%;
+        border: 2px solid #333;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #252525;
+        transition: all 0.3s ease;
+        cursor: default;
+
+        &__digit {
+            font-size: 18px;
+            font-weight: 800;
+            color: #fff;
+            line-height: 1;
+        }
+
+        &__pct {
+            font-size: 10px;
+            color: #888;
+            font-weight: 600;
+        }
+
+        &--current {
+            background: #1a2a4a !important;
+            border-color: #00a8ff !important;
+            box-shadow: 0 0 16px #00a8ff55 !important;
+
+            .mat__circle__digit {
+                color: #00a8ff;
+            }
+            .mat__circle__pct {
+                color: #00a8ffaa;
+            }
+        }
+
+        &--most {
+            border-color: #00e676;
+            .mat__circle__pct {
+                color: #00e676;
+            }
+        }
+
+        &--least {
+            border-color: #ef5350;
+            .mat__circle__pct {
+                color: #ef5350;
+            }
+        }
+    }
+
+    // 6 stat boxes
+    &__stat-boxes {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+
+        @media (max-width: 600px) {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    &__stat-box {
+        border-radius: 8px;
+        padding: 12px 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        &--green {
+            background: rgba(0, 230, 118, 0.08);
+            border: 1px solid rgba(0, 230, 118, 0.25);
+
+            .mat__stat-box__label {
+                color: #00e676;
+            }
+            .mat__stat-box__value {
+                color: #00e676;
+            }
+        }
+
+        &--red {
+            background: rgba(239, 83, 80, 0.08);
+            border: 1px solid rgba(239, 83, 80, 0.25);
+
+            .mat__stat-box__label {
+                color: #ef5350;
+            }
+            .mat__stat-box__value {
+                color: #ef5350;
+            }
+        }
+
+        &__label {
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+
+        &__value {
+            font-size: 16px;
+            font-weight: 800;
+            font-family: 'Courier New', monospace;
+        }
+    }
+
+    // ── Recommendation bar ────────────────────────────────────────────────────
+    &__recommendation {
+        border-radius: 8px;
+        padding: 12px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+
+        &--strong {
+            background: rgba(0, 230, 118, 0.08);
+            border: 1px solid rgba(0, 230, 118, 0.3);
+        }
+        &--moderate {
+            background: rgba(255, 179, 0, 0.08);
+            border: 1px solid rgba(255, 179, 0, 0.3);
+        }
+        &--weak {
+            background: rgba(239, 83, 80, 0.08);
+            border: 1px solid rgba(239, 83, 80, 0.3);
+        }
+
+        &__signal {
+            font-size: 14px;
+            color: #e0e0e0;
+            b {
+                color: #fff;
+                font-size: 15px;
+            }
+        }
+
+        &__verdict {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        &--strong &__verdict {
+            color: #00e676;
+        }
+        &--moderate &__verdict {
+            color: #ffb300;
+        }
+        &--weak &__verdict {
+            color: #ef5350;
+        }
+    }
+
+    // ── Digit summary panel (digits mode) ────────────────────────────────────
+    &__digit-summary {
+        background: #1e1e1e;
+        border: 1px solid #2a2a2a;
+        border-radius: 12px;
+        padding: 20px 24px;
+
+        &__title {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #555;
+            margin-bottom: 16px;
+        }
+
+        &__total {
+            font-weight: 400;
+            color: #444;
+            margin-left: 8px;
+            font-size: 11px;
+        }
+
+        &__grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 8px;
+            margin-bottom: 16px;
+
+            @media (max-width: 700px) {
+                grid-template-columns: repeat(5, 1fr);
+            }
+        }
+
+        &__stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            font-size: 13px;
+            color: #666;
+            padding-top: 12px;
+            border-top: 1px solid #252525;
+
+            b {
+                font-size: 14px;
+            }
+        }
+    }
+
+    // ── Technical analysis panel ──────────────────────────────────────────────
+    &__tech-panel {
+        background: #1e1e1e;
+        border: 1px solid #2a2a2a;
+        border-radius: 12px;
+        padding: 20px 24px;
+    }
+
+    &__tech-title {
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #555;
+        margin-bottom: 16px;
+    }
+
+    &__tech-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 16px;
+    }
+
+    &__tech-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    &__tech-label {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #555;
+    }
+
+    &__tech-val {
+        font-size: 20px;
+        font-weight: 800;
+        color: #fff;
+        font-family: 'Courier New', monospace;
+    }
+
+    &__tech-hint {
+        font-size: 11px;
+        color: #555;
+        font-style: italic;
+    }
+
+    // ── Window cards grid ─────────────────────────────────────────────────────
+    &__windows-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 16px;
+    }
+
+    // ── Entry/Exit section ────────────────────────────────────────────────────
+    &__ee-section {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    &__ee-header {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+    }
+
+    &__ee-legend {
+        font-size: 11px;
+        color: #444;
+        padding: 8px 12px;
+        background: #1a1a1a;
+        border-radius: 6px;
+    }
+
+    &__ee-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        max-height: 600px;
+        overflow-y: auto;
+    }
+
+    &__ee-empty {
+        text-align: center;
+        padding: 60px 20px;
+        color: #444;
+        font-size: 14px;
+        line-height: 1.8;
+
+        small {
+            font-size: 12px;
+            color: #333;
+        }
+    }
+
+    // ── Disclaimer ────────────────────────────────────────────────────────────
+    &__disclaimer {
+        text-align: center;
+        font-size: 11px;
+        color: #333;
+        margin-top: 40px;
+        line-height: 1.6;
+    }
+}
+
+// ── Digit tile ────────────────────────────────────────────────────────────────
+
+.mat__digit-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: #252525;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    padding: 10px 4px 8px;
+    position: relative;
+    transition: border-color 0.2s;
+
+    &--most {
+        border-color: #00e67644;
+        background: #00250f;
+    }
+    &--least {
+        border-color: #ef535044;
+        background: #250000;
+    }
+
+    &__num {
+        font-size: 18px;
+        font-weight: 800;
+        color: #fff;
+    }
+
+    &__bar {
+        width: 100%;
+        height: 50px;
+        background: #1a1a1a;
+        border-radius: 4px;
+        display: flex;
+        align-items: flex-end;
+        overflow: hidden;
+    }
+
+    &__fill {
+        width: 100%;
+        border-radius: 4px 4px 0 0;
+        transition: height 0.4s ease;
+        min-height: 2px;
+    }
+
+    &__pct {
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    &__count {
+        font-size: 10px;
+        color: #444;
+    }
+
+    &__tag {
+        position: absolute;
+        top: -8px;
+        font-size: 8px;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        padding: 1px 5px;
+        border-radius: 8px;
+
+        &--most {
+            background: #00e676;
+            color: #000;
+        }
+        &--least {
+            background: #ef5350;
+            color: #fff;
+        }
+    }
+}
+
+// ── Window card ──────────────────────────────────────────────────────────────
+
+.mat-window-card {
+    background: #1e1e1e;
+    border: 1px solid #2a2a2a;
+    border-radius: 12px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: border-color 0.2s;
+
+    &:hover {
+        border-color: #00a8ff44;
+    }
+
+    &__header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    &__ticks {
+        font-size: 13px;
+        font-weight: 800;
+        color: #00a8ff;
+        background: #00a8ff18;
+        padding: 3px 10px;
+        border-radius: 20px;
+    }
+
+    &__signal {
+        flex: 1;
+        font-size: 14px;
+        font-weight: 700;
+        color: #ffb300;
+    }
+
+    &__score {
+        font-size: 20px;
+        font-weight: 800;
+    }
+
+    &__digits {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    &__warning {
+        font-size: 11px;
+        color: #ffb300;
+        background: rgba(255, 179, 0, 0.08);
+        border: 1px solid rgba(255, 179, 0, 0.2);
+        border-radius: 6px;
+        padding: 5px 10px;
+    }
+
+    &__summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        font-size: 11px;
+        color: #666;
+        margin-top: 6px;
+        padding-top: 8px;
+        border-top: 1px solid #252525;
+
+        b {
+            font-size: 12px;
+        }
+    }
+
+    &__direction {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    &__spots {
+        display: flex;
+        gap: 16px;
+        font-size: 12px;
+        color: #666;
+        padding-top: 8px;
+        border-top: 1px solid #252525;
+        flex-wrap: wrap;
+
+        b {
+            font-family: 'Courier New', monospace;
+        }
+    }
+}
+
+// ── Digit bar ─────────────────────────────────────────────────────────────────
+
+.mat-digit-bar {
+    display: grid;
+    grid-template-columns: 16px 1fr 48px;
+    align-items: center;
+    gap: 8px;
+
+    &__label {
+        font-size: 11px;
+        font-weight: 700;
+        color: #666;
+        text-align: right;
+    }
+
+    &__track {
+        height: 6px;
+        background: #252525;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    &__fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.4s ease;
+    }
+
+    &__pct {
+        font-size: 11px;
+        font-weight: 600;
+        text-align: right;
+    }
+}
+
+// ── Direction bar ─────────────────────────────────────────────────────────────
+
+.mat-dir-row {
+    display: grid;
+    grid-template-columns: 52px 1fr 48px;
+    align-items: center;
+    gap: 8px;
+}
+
+.mat-dir-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #888;
+}
+
+.mat-dir-track {
+    height: 8px;
+    background: #252525;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.mat-dir-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.4s ease;
+
+    &--up {
+        background: #00e676;
+    }
+    &--down {
+        background: #ef5350;
+    }
+}
+
+.mat-dir-pct {
+    font-size: 12px;
+    font-weight: 700;
+    text-align: right;
+}
+
+// ── Spot labels ───────────────────────────────────────────────────────────────
+
+.mat-spot {
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+
+    &--entry {
+        color: #00a8ff;
+    }
+    &--exit {
+        color: #00e676;
+    }
+}
+
+// ── Entry/Exit row ────────────────────────────────────────────────────────────
+
+.mat-ee-row {
+    display: grid;
+    grid-template-columns: 50px 1fr auto auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: #1a1a1a;
+    border-radius: 8px;
+    border-left: 3px solid #333;
+    font-size: 13px;
+    animation: slideIn 0.25s ease;
+
+    &--up {
+        border-left-color: #00e676;
+    }
+    &--down {
+        border-left-color: #ef5350;
+    }
+    &--flat {
+        border-left-color: #555;
+    }
+
+    &__window {
+        font-size: 11px;
+        font-weight: 800;
+        color: #00a8ff;
+        background: #00a8ff18;
+        padding: 2px 6px;
+        border-radius: 10px;
+        text-align: center;
+    }
+
+    &__spots {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        font-family: 'Courier New', monospace;
+    }
+
+    &__change {
+        font-weight: 700;
+        white-space: nowrap;
+        font-size: 12px;
+
+        &--up {
+            color: #00e676;
+        }
+        &--down {
+            color: #ef5350;
+        }
+        &--flat {
+            color: #888;
+        }
+    }
+
+    &__time {
+        font-size: 11px;
+        color: #444;
+        white-space: nowrap;
+    }
+}
+
+.mat-ee-label {
+    font-size: 11px;
+    color: #555;
+}
+.mat-ee-value {
+    color: #fff;
+    em {
+        color: #ffb300;
+        font-style: normal;
+    }
+}
+.mat-ee-arrow {
+    color: #888;
+    font-size: 16px;
+}
+
+// ── Animations ────────────────────────────────────────────────────────────────
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes pulse-status {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+// ── Responsive ────────────────────────────────────────────────────────────────
+
+@media (max-width: 900px) {
+    .mat {
+        padding: 16px 12px 40px;
+
+        &__controls {
+            padding: 16px;
+        }
+        &__best-card {
+            flex-direction: column;
+            gap: 12px;
+        }
+        &__windows-grid {
+            grid-template-columns: 1fr;
+        }
+        &__table {
+            min-width: 700px;
+        }
+        &__tech-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    .mat-ee-row {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+}
+
+@media (max-width: 600px) {
+    .mat__tech-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .mat__tabs {
+        flex-direction: column;
+    }
+}

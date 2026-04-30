@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 24">
+  <defs>
+    <linearGradient id="maroon-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#a00000;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#800000;stop-opacity:1"/>
+    </linearGradient>
+  </defs>
+  <!-- Shield/D icon -->
+  <path d="M5 1 L5 23 Q17 24 20 12 Q17 0 5 1Z" fill="url(#maroon-grad)"/>
+  <path d="M8 5 L8 19 Q13 20 15 12 Q13 4 8 5Z" fill="#ffffff"/>
+  <!-- DERIVPRO text -->
+  <text x="28" y="14" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="13" fill="#800000" letter-spacing="0.5">DERIVPRO</text>
+  <!-- ACADEMY text -->
+  <text x="28" y="23" font-family="Arial, sans-serif" font-weight="600" font-size="7.5" fill="#5c0000" letter-spacing="3.5">ACADEMY</text>
+</svg>

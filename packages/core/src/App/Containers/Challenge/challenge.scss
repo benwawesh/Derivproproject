@@ -1,0 +1,380 @@
+.dpa-challenge {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px 16px 80px;
+
+    &__loading {
+        display: flex;
+        justify-content: center;
+        padding: 80px;
+        color: var(--text-general);
+        font-size: 14px;
+    }
+
+    &__login-prompt {
+        text-align: center;
+        padding: 80px 24px;
+
+        h2 {
+            font-size: 22px;
+            color: var(--text-prominent);
+            margin: 16px 0 8px;
+        }
+        p {
+            color: var(--text-general);
+            font-size: 14px;
+        }
+    }
+
+    &__login-icon {
+        font-size: 48px;
+    }
+
+    &__header {
+        text-align: center;
+        margin-bottom: 32px;
+
+        h1 {
+            font-size: 26px;
+            font-weight: 800;
+            color: #800000;
+            margin: 0 0 6px;
+        }
+        p {
+            color: var(--text-general);
+            font-size: 14px;
+            margin: 0;
+        }
+    }
+
+    // Phase cards
+    &__phases {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin-bottom: 28px;
+
+        @media (max-width: 600px) {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    &__phase-card {
+        border: 2px solid var(--general-section-1);
+        border-radius: 12px;
+        padding: 20px 16px;
+        text-align: center;
+        background: var(--general-main-1);
+        transition: border-color 0.2s;
+
+        &--active {
+            border-color: #800000;
+            background: rgba(128, 0, 0, 0.04);
+        }
+        &--done {
+            border-color: #2e7d32;
+            background: rgba(46, 125, 50, 0.04);
+        }
+    }
+
+    &__phase-num {
+        width: 36px;
+        height: 36px;
+        background: #800000;
+        color: #fff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 16px;
+        margin: 0 auto 10px;
+
+        .dpa-challenge__phase-card--done & {
+            background: #2e7d32;
+        }
+    }
+
+    &__phase-label {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text-prominent);
+        margin-bottom: 6px;
+    }
+
+    &__phase-target {
+        font-size: 20px;
+        font-weight: 800;
+        color: #800000;
+        margin-bottom: 4px;
+    }
+
+    &__phase-duration {
+        font-size: 12px;
+        color: var(--text-general);
+    }
+
+    // Rules
+    &__rules {
+        background: var(--general-main-1);
+        border: 1px solid var(--general-section-1);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+
+        h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-prominent);
+            margin: 0 0 16px;
+        }
+    }
+
+    &__rules-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+
+        @media (max-width: 600px) {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    &__rule {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+        color: var(--text-general);
+
+        strong {
+            color: var(--text-prominent);
+        }
+    }
+
+    &__rule-icon {
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+
+    // Funded amounts
+    &__funded {
+        background: var(--general-main-1);
+        border: 1px solid var(--general-section-1);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 24px;
+
+        h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-prominent);
+            margin: 0 0 16px;
+        }
+    }
+
+    &__funded-amounts {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    &__funded-amount {
+        padding: 10px 20px;
+        background: rgba(128, 0, 0, 0.08);
+        border: 1px solid rgba(128, 0, 0, 0.3);
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 700;
+        color: #800000;
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:hover {
+            background: rgba(128, 0, 0, 0.15);
+            border-color: #800000;
+        }
+
+        &--selected {
+            background: #800000;
+            border-color: #800000;
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(128, 0, 0, 0.4);
+        }
+    }
+
+    // Register
+    &__register {
+        background: var(--general-main-1);
+        border: 2px solid #800000;
+        border-radius: 12px;
+        padding: 28px;
+        text-align: center;
+
+        h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-prominent);
+            margin: 0 0 8px;
+        }
+        p {
+            font-size: 14px;
+            color: var(--text-general);
+            margin: 0 0 20px;
+        }
+    }
+
+    &__error {
+        color: #c62828;
+        font-size: 13px;
+        margin-bottom: 12px;
+    }
+
+    &__register-btn {
+        background: #800000;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 14px 32px;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: opacity 0.15s;
+
+        &:hover {
+            opacity: 0.85;
+        }
+        &:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    }
+
+    // Dashboard
+    &__dashboard {
+        background: var(--general-main-1);
+        border: 1px solid var(--general-section-1);
+        border-radius: 12px;
+        padding: 24px;
+    }
+
+    &__dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 12px;
+
+        h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-prominent);
+            margin: 0 0 4px;
+        }
+    }
+
+    &__login {
+        font-size: 12px;
+        color: var(--text-general);
+        font-family: monospace;
+    }
+
+    &__status {
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+
+        &--active {
+            background: rgba(128, 0, 0, 0.1);
+            color: #800000;
+        }
+        &--passed {
+            background: rgba(46, 125, 50, 0.1);
+            color: #2e7d32;
+        }
+        &--failed,
+        &--disqualified {
+            background: rgba(198, 40, 40, 0.1);
+            color: #c62828;
+        }
+    }
+
+    &__stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    &__stat {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 14px;
+        background: var(--general-section-1);
+        border-radius: 8px;
+    }
+
+    &__stat-label {
+        font-size: 11px;
+        color: var(--text-general);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    &__stat-value {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text-prominent);
+
+        &--profit {
+            color: #2e7d32;
+        }
+        &--loss {
+            color: #c62828;
+        }
+    }
+
+    // Progress bars
+    &__progress-section {
+        margin-bottom: 14px;
+    }
+
+    &__progress-label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: var(--text-general);
+        margin-bottom: 6px;
+
+        &--danger {
+            color: #c62828;
+            font-weight: 600;
+        }
+    }
+
+    &__progress-bar {
+        height: 8px;
+        background: var(--general-section-1);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    &__progress-fill {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 0.4s ease;
+
+        &--profit {
+            background: #800000;
+        }
+        &--drawdown {
+            background: #f57c00;
+        }
+        &--danger {
+            background: #c62828;
+        }
+    }
+}

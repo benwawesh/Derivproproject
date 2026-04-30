@@ -1,0 +1,44 @@
+/* ── Global tab bar — sticky below header + banner, visible on non-/bot pages ── */
+.dc-tabs--dpa-global-tabbar {
+    position: sticky;
+    top: 72px; /* 40px header + 32px announcement banner */
+    z-index: 998;
+    background: var(--general-main-1);
+    grid-template-rows: auto 0 !important;
+
+    .dc-tabs__content--dpa-global-tabbar {
+        display: none !important;
+        height: 0 !important;
+        overflow: hidden !important;
+    }
+
+    /* Make tab list scrollable on non-/bot pages */
+    .dc-tabs__list--header--dpa-global-tabbar {
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+
+        &::-webkit-scrollbar {
+            display: none;
+        }
+    }
+}
+
+/* ── Native bot tab bar (/bot) — scrollable, clears the Run button ── */
+.dc-tabs__list--header--main__tabs {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+/* Add right padding so last tabs scroll past the Run button (~300px wide) */
+.dc-tabs__list--main__tabs {
+    padding-right: 320px !important;
+    flex-wrap: nowrap;
+}
