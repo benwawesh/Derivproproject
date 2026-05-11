@@ -32,13 +32,25 @@ const CallbackPage = () => {
 
     // Capture at mount time so re-renders don't change the mode
     const is_legacy_oauth = useRef(!!acct1);
-    const is_dpa_pkce = useRef(!!(code && sessionStorage.getItem('dpa_pkce_verifier')));
+    const dpa_verifier_on_mount = useRef(sessionStorage.getItem('dpa_pkce_verifier'));
+    const is_dpa_pkce = useRef(!!(code && dpa_verifier_on_mount.current));
+    // auth.deriv.com returned an error (e.g. consent verifier issue) — trigger fallback
+    const is_dpa_pkce_error = useRef(!!(search_params.get('error') && dpa_verifier_on_mount.current));
 
     const has_access_denied_error = location.search.includes('access_denied');
 
     const [isDuplicateLoginEnabled] = useGrowthbookGetFeatureValue({
         featureFlag: 'duplicate-login',
     });
+
+    // auth.deriv.com OIDC failed — automatically fall back to old OAuth
+    useEffect(() => {
+        if (!is_dpa_pkce_error.current) return;
+        sessionStorage.removeItem('dpa_pkce_verifier');
+        sessionStorage.removeItem('dpa_pkce_state');
+        sessionStorage.removeItem('dpa_pkce_redirect');
+        window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=133890&l=EN&brand=deriv`;
+    }, []);
 
     // Option A fallback: old OAuth sent tokens directly in URL params
     useEffect(() => {
@@ -97,7 +109,7 @@ const CallbackPage = () => {
     }, []);
 
     // Show loading / error for our custom DPA flows
-    if (is_legacy_oauth.current || is_dpa_pkce.current) {
+    if (is_legacy_oauth.current || is_dpa_pkce.current || is_dpa_pkce_error.current) {
         if (dpa_error) {
             return (
                 <Button
