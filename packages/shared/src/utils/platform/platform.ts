@@ -86,6 +86,9 @@ export const getPlatformInformation = (routing_history: TRoutingHistory) => {
 };
 
 export const getActivePlatform = (routing_history: TRoutingHistory) => {
+    if (isBot() || isNavigationFromPlatform(routing_history, routes.bot)) {
+        return platform_name.DBot;
+    }
     switch (true) {
         case isNavigationFromExternalPlatform(routing_history, routes.smarttrader):
             return platform_name.SmartTrader;

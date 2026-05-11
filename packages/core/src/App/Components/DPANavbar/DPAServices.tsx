@@ -1,7 +1,12 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { observer, useStore } from '@deriv/stores';
 import { getSettings, trackUser, getParticipant, getRulesForParticipant, supabase } from 'Services/supabase';
-import { initFundedGuard, destroyFundedGuard, updateGuardParticipant } from 'Services/funded-guard';
+import {
+    initFundedGuard,
+    destroyFundedGuard,
+    updateGuardParticipant,
+    setFundedTradingMode,
+} from 'Services/funded-guard';
 import { initMarketingGuard, destroyMarketingGuard, setMarketingTradingMode } from 'Services/MarketingGuard';
 import { initDPADTraderBridge } from 'Services/DPADTraderBridge';
 
@@ -93,6 +98,7 @@ const DPAServices = observer(() => {
     useEffect(() => {
         const is_demo = loginid?.startsWith('VRT') || loginid?.startsWith('vrt');
         setMarketingTradingMode(!is_demo);
+        setFundedTradingMode(!is_demo);
     }, [loginid]);
 
     useEffect(() => {

@@ -46,7 +46,9 @@
         margin: 0 auto;
         padding: 40px 32px 80px;
 
-        @media (max-width: 768px) { padding: 24px 16px 60px; }
+        @media (max-width: 768px) {
+            padding: 24px 16px 60px;
+        }
     }
 
     &__layout {
@@ -55,14 +57,17 @@
         gap: 24px;
         margin-bottom: 40px;
 
-        @media (max-width: 860px) { grid-template-columns: 1fr; }
+        @media (max-width: 860px) {
+            grid-template-columns: 1fr;
+        }
     }
 
-    &__panel, &__results-panel {
+    &__panel,
+    &__results-panel {
         background: #fff;
         border-radius: 14px;
         padding: 28px;
-        box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+        box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
         border: 1px solid #e8e8e8;
     }
 
@@ -104,7 +109,10 @@
         box-sizing: border-box;
         background: #fafafa;
 
-        &:focus { border-color: #800000; background: #fff; }
+        &:focus {
+            border-color: #800000;
+            background: #fff;
+        }
     }
 
     &__range-wrap {
@@ -134,7 +142,9 @@
         color: #555;
         margin-bottom: 20px;
 
-        strong { color: #800000; }
+        strong {
+            color: #800000;
+        }
     }
 
     &__actions {
@@ -155,14 +165,18 @@
         &--primary {
             background: #800000;
             color: #fff;
-            &:hover { background: #5a0000; }
+            &:hover {
+                background: #5a0000;
+            }
         }
 
         &--secondary {
             background: #f5f5f5;
             color: #555;
             border: 1px solid #e0e0e0;
-            &:hover { background: #efefef; }
+            &:hover {
+                background: #efefef;
+            }
         }
     }
 
@@ -172,9 +186,16 @@
         padding: 40px 20px;
         color: #aaa;
 
-        &-icon { font-size: 48px; margin-bottom: 16px; }
+        &-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
 
-        p { font-size: 14px; color: #888; line-height: 1.6; }
+        p {
+            font-size: 14px;
+            color: #888;
+            line-height: 1.6;
+        }
     }
 
     &__results {
@@ -192,13 +213,24 @@
         border-radius: 10px;
         border: 1px solid #f0f0f0;
 
-        &--risk  { background: rgba(198,40,40,0.04); border-color: rgba(198,40,40,0.15); }
-        &--profit { background: rgba(46,125,50,0.04); border-color: rgba(46,125,50,0.15); }
+        &--risk {
+            background: rgba(198, 40, 40, 0.04);
+            border-color: rgba(198, 40, 40, 0.15);
+        }
+        &--profit {
+            background: rgba(46, 125, 50, 0.04);
+            border-color: rgba(46, 125, 50, 0.15);
+        }
     }
 
-    &__result-icon { font-size: 24px; flex-shrink: 0; }
+    &__result-icon {
+        font-size: 24px;
+        flex-shrink: 0;
+    }
 
-    &__result-body { flex: 1; }
+    &__result-body {
+        flex: 1;
+    }
 
     &__result-label {
         font-size: 12px;
@@ -255,7 +287,7 @@
         background: #fff;
         border-radius: 14px;
         padding: 28px;
-        box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+        box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
         border: 1px solid #e8e8e8;
     }
 
@@ -282,11 +314,54 @@
         border: 1px solid #f0f0f0;
     }
 
-    &__tip-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    &__tip-icon {
+        font-size: 18px;
+        flex-shrink: 0;
+        margin-top: 1px;
+    }
 
     &__tip-text {
         font-size: 13px;
         color: #555;
         line-height: 1.55;
+    }
+}
+
+/* ── RiskCalculator — mobile responsive ─────────────────────────────────────── */
+@media (max-width: 600px) {
+    .dpa-calc {
+        &__banner-inner {
+            padding: 24px 16px;
+        }
+        &__banner-title {
+            font-size: 22px;
+        }
+        &__banner-sub {
+            font-size: 14px;
+        }
+        &__panel {
+            padding: 16px;
+        }
+        &__panel-title {
+            font-size: 15px;
+        }
+        &__tips {
+            padding: 16px;
+        }
+        &__tips-title {
+            font-size: 15px;
+        }
+        &__tips-grid {
+            grid-template-columns: 1fr;
+        }
+        &__actions {
+            flex-direction: column;
+        }
+        &__results-placeholder {
+            padding: 24px 16px;
+        }
+        &__results-placeholder-icon {
+            font-size: 36px;
+        }
     }
 }

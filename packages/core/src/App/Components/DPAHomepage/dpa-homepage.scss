@@ -1422,3 +1422,61 @@
         }
     }
 }
+
+/* ── DPAHomepage — mobile responsive ───────────────────────────────────────── */
+@media (max-width: 600px) {
+    .dpa-home {
+        &__section-header {
+            margin-bottom: 28px;
+            h2 {
+                font-size: 22px;
+            }
+            p {
+                font-size: 14px;
+            }
+        }
+        &__btn {
+            padding: 12px 20px;
+            font-size: 14px;
+            width: 100%;
+            text-align: center;
+        }
+        &__hero {
+            padding: 32px 16px 28px;
+            gap: 24px;
+        }
+        &__hero-title {
+            font-size: 28px;
+            margin-bottom: 12px;
+        }
+        &__hero-sub {
+            font-size: 15px;
+            margin-bottom: 20px;
+        }
+        &__hero-btns {
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+        &__stat-value {
+            font-size: 20px;
+        }
+        &__cta {
+            padding: 40px 16px;
+            h2 {
+                font-size: 22px;
+            }
+            p {
+                font-size: 15px;
+            }
+        }
+    }
+}
+
+@media (max-width: 768px) {
+    .dpa-home {
+        &__section-header {
+            margin-bottom: 32px;
+        }
+    }
+}

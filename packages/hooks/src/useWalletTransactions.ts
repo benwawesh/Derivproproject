@@ -252,7 +252,7 @@ const useWalletTransactions = (
     );
 
     const getTransferAccountName = useCallback(
-        (other_account: Exclude<typeof accounts[number], undefined>) => {
+        (other_account: Exclude<(typeof accounts)[number], undefined>) => {
             if (other_account.account_category === 'wallet') {
                 const wallet = wallets?.find(el => el.loginid === other_account.loginid);
                 return `${wallet?.is_virtual ? 'Demo ' : ''}${wallet?.currency} ${'Wallet'}`;

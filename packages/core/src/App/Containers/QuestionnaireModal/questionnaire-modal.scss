@@ -26,7 +26,9 @@
             inline-size: 32.8rem;
             padding-block: 2rem;
             padding-inline: 1.6rem;
-            box-shadow: 0 0.4rem 0.6rem -0.2rem rgba(14, 14, 14, 0.03), 0 1.2rem 1.6rem -0.4rem rgba(14, 14, 14, 0.08);
+            box-shadow:
+                0 0.4rem 0.6rem -0.2rem rgba(14, 14, 14, 0.03),
+                0 1.2rem 1.6rem -0.4rem rgba(14, 14, 14, 0.08);
             border-radius: $BORDER-RADIUS * 4;
             border: 0.1rem solid var(--general-active);
             @include mobile {
@@ -51,7 +53,9 @@
             align-items: center;
             min-inline-size: 15rem;
             min-block-size: 13.8rem;
-            box-shadow: 0 0.4rem 0.6rem -0.2rem rgba(14, 14, 14, 0.03), 0 1.2rem 1.6rem -0.4rem rgba(14, 14, 14, 0.08);
+            box-shadow:
+                0 0.4rem 0.6rem -0.2rem rgba(14, 14, 14, 0.03),
+                0 1.2rem 1.6rem -0.4rem rgba(14, 14, 14, 0.08);
             border-radius: $BORDER-RADIUS * 4;
             border: 0.1rem solid var(--general-active);
             &:hover {

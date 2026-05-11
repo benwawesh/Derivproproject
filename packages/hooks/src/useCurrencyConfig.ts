@@ -75,7 +75,7 @@ const useCurrencyConfig = () => {
             };
         });
 
-        return modified_currencies_config.reduce<Record<string, typeof modified_currencies_config[number]>>(
+        return modified_currencies_config.reduce<Record<string, (typeof modified_currencies_config)[number]>>(
             (previous, current) => ({ ...previous, [current.code]: current }),
             {}
         );

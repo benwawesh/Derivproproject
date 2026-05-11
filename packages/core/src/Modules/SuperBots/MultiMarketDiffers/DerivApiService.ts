@@ -62,8 +62,12 @@ export class DerivApiService {
         this.appId = window.localStorage.getItem('config.app_id') || '36300';
     }
 
-    setTradeUpdateCallback(cb: (trade: TradeResult) => void) { this.onTradeUpdate = cb; }
-    setErrorCallback(cb: (error: string) => void) { this.onError = cb; }
+    setTradeUpdateCallback(cb: (trade: TradeResult) => void) {
+        this.onTradeUpdate = cb;
+    }
+    setErrorCallback(cb: (error: string) => void) {
+        this.onError = cb;
+    }
 
     connect(): Promise<boolean> {
         return new Promise(resolve => {
@@ -89,7 +93,7 @@ export class DerivApiService {
                 this.handleMessage(msg, authResolve);
             };
 
-            this.ws.onerror = (err) => {
+            this.ws.onerror = err => {
                 console.error('[Bot] WebSocket error:', err);
                 // onerror is always followed by onclose, so let onclose handle reconnect
                 if (!this.authResolved && authResolve) {
@@ -103,7 +107,9 @@ export class DerivApiService {
                 if (this.running && this.reconnectAttempts < this.MAX_RECONNECT) {
                     this.reconnectAttempts++;
                     const delay = Math.min(2000 * this.reconnectAttempts, 10000);
-                    console.log(`[Bot] Connection lost — reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.MAX_RECONNECT})`);
+                    console.log(
+                        `[Bot] Connection lost — reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.MAX_RECONNECT})`
+                    );
                     setTimeout(() => this.openSocket(), delay);
                 } else if (this.running) {
                     this.running = false;
@@ -123,7 +129,10 @@ export class DerivApiService {
         if (msg.msg_type === 'authorize') {
             if (msg.error) {
                 this.onError?.(`Auth failed: ${msg.error.message}`);
-                if (!this.authResolved && authResolve) { this.authResolved = true; authResolve(false); }
+                if (!this.authResolved && authResolve) {
+                    this.authResolved = true;
+                    authResolve(false);
+                }
                 return;
             }
             this.isAuthorized = true;
@@ -215,7 +224,8 @@ export class DerivApiService {
             if (status === 'lost' && state.market.martingaleEnabled) {
                 if (state.martingaleLevel < state.market.martingaleMaxLevels) {
                     state.martingaleLevel++;
-                    state.currentStake = state.market.stake * Math.pow(state.market.martingaleMultiplier, state.martingaleLevel);
+                    state.currentStake =
+                        state.market.stake * Math.pow(state.market.martingaleMultiplier, state.martingaleLevel);
                 }
             } else if (status === 'won') {
                 state.martingaleLevel = 0;

@@ -81,7 +81,7 @@ const useTransferBetweenAccounts = () => {
                     {} as Record<
                         string,
                         NonNullable<
-                            typeof accounts[number] & {
+                            (typeof accounts)[number] & {
                                 gradient_class?: `wallet-card__${string}`;
                                 icon?: string;
                                 mt5_market_type?: 'all' | 'financial' | 'synthetic';
@@ -108,7 +108,7 @@ const useTransferBetweenAccounts = () => {
                     {} as Record<
                         string,
                         NonNullable<
-                            typeof accounts[number] & {
+                            (typeof accounts)[number] & {
                                 gradient_class?: `wallet-card__${string}`;
                                 icon?: string;
                             }

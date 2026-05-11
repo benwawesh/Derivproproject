@@ -50,7 +50,7 @@ const useMarketingDisplay = () => {
 
 const useFundedDisplay = () => {
     const { client } = useStore();
-    const { loginid, accounts } = client;
+    const { loginid, accounts, is_virtual } = client;
     const [is_funded, setIsFunded] = React.useState(false);
     const [funded_balance, setFundedBalance] = React.useState(0);
 
@@ -58,6 +58,40 @@ const useFundedDisplay = () => {
         if (!loginid) return;
         const real_id =
             Object.keys(accounts || {}).find(id => !id.startsWith('VRT') && !id.startsWith('vrt')) || loginid;
+
+        // Always register these listeners — even on demo — so manual funded selection works
+        const onActivated = () => {
+            window.__dpa_user_chose = 'funded';
+            setIsFunded(true);
+        };
+        const onDeactivated = () => {
+            window.__dpa_user_chose = 'deriv';
+            setIsFunded(false);
+        };
+        const onBalanceUpdate = e => {
+            const { current_balance } = e.detail ?? {};
+            if (typeof current_balance === 'number') setFundedBalance(current_balance);
+        };
+        // Fired by activateGuard() after it fetches participant data
+        const onChallengeActivated = e => {
+            const { current_balance } = e.detail ?? {};
+            if (typeof current_balance === 'number') setFundedBalance(current_balance);
+        };
+        window.addEventListener('dpa_funded_activated', onActivated);
+        window.addEventListener('dpa_funded_deactivated', onDeactivated);
+        window.addEventListener('dpa_funded_balance_updated', onBalanceUpdate);
+        window.addEventListener('dpa_funded_challenge_activated', onChallengeActivated);
+
+        // Never show funded mode when on demo account (unless user explicitly chose it)
+        if (is_virtual && window.__dpa_user_chose !== 'funded') {
+            setIsFunded(false);
+            return () => {
+                window.removeEventListener('dpa_funded_activated', onActivated);
+                window.removeEventListener('dpa_funded_deactivated', onDeactivated);
+                window.removeEventListener('dpa_funded_balance_updated', onBalanceUpdate);
+                window.removeEventListener('dpa_funded_challenge_activated', onChallengeActivated);
+            };
+        }
 
         // Use window.__dpa_user_chose (survives re-mounts) to guard against
         // async DB calls re-activating funded mode after the user switched away.
@@ -102,29 +136,12 @@ const useFundedDisplay = () => {
             })
             .subscribe();
 
-        // Manual switch from account switcher
-        const onActivated = () => {
-            window.__dpa_user_chose = 'funded';
-            setIsFunded(true);
-        };
-        const onDeactivated = () => {
-            window.__dpa_user_chose = 'deriv';
-            setIsFunded(false);
-        };
-        // Balance update after each funded trade (dispatched by FundedAccountStore.recordTrade)
-        const onBalanceUpdate = e => {
-            const { current_balance } = e.detail ?? {};
-            if (typeof current_balance === 'number') setFundedBalance(current_balance);
-        };
-        window.addEventListener('dpa_funded_activated', onActivated);
-        window.addEventListener('dpa_funded_deactivated', onDeactivated);
-        window.addEventListener('dpa_funded_balance_updated', onBalanceUpdate);
-
         return () => {
             supabase.removeChannel(channel);
             window.removeEventListener('dpa_funded_activated', onActivated);
             window.removeEventListener('dpa_funded_deactivated', onDeactivated);
             window.removeEventListener('dpa_funded_balance_updated', onBalanceUpdate);
+            window.removeEventListener('dpa_funded_challenge_activated', onChallengeActivated);
         };
     }, [loginid, accounts]);
 

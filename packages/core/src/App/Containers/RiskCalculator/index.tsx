@@ -10,22 +10,22 @@ type TResult = {
 };
 
 const RiskCalculatorPage = () => {
-    const [balance, setBalance]         = useState('1000');
-    const [risk_pct, setRiskPct]        = useState('2');
-    const [rr, setRr]                   = useState('2');
-    const [stake, setStake]             = useState('');
-    const [payout, setPayout]           = useState('');
-    const [result, setResult]           = useState<TResult | null>(null);
+    const [balance, setBalance] = useState('1000');
+    const [risk_pct, setRiskPct] = useState('2');
+    const [rr, setRr] = useState('2');
+    const [stake, setStake] = useState('');
+    const [payout, setPayout] = useState('');
+    const [result, setResult] = useState<TResult | null>(null);
 
     const calculate = () => {
         const bal = parseFloat(balance) || 0;
-        const rp  = parseFloat(risk_pct) || 0;
+        const rp = parseFloat(risk_pct) || 0;
         const rrv = parseFloat(rr) || 2;
 
-        const risk_amount      = (bal * rp) / 100;
+        const risk_amount = (bal * rp) / 100;
         const potential_profit = risk_amount * rrv;
-        const max_trades       = rp > 0 ? Math.floor(100 / rp) : 0;
-        const recovery_trades  = Math.ceil(1 / (rrv - 1 > 0 ? rrv - 1 : 1));
+        const max_trades = rp > 0 ? Math.floor(100 / rp) : 0;
+        const recovery_trades = Math.ceil(1 / (rrv - 1 > 0 ? rrv - 1 : 1));
 
         setResult({ risk_amount, potential_profit, rr_ratio: `1:${rrv}`, max_trades, recovery_trades });
     };
@@ -40,13 +40,10 @@ const RiskCalculatorPage = () => {
     };
 
     // Derived stake suggestion
-    const suggested_stake = balance && risk_pct
-        ? ((parseFloat(balance) * parseFloat(risk_pct)) / 100).toFixed(2)
-        : '';
+    const suggested_stake = balance && risk_pct ? ((parseFloat(balance) * parseFloat(risk_pct)) / 100).toFixed(2) : '';
 
     return (
         <div className='dpa-calc'>
-
             {/* ── Banner ──────────────────────────────────── */}
             <div className='dpa-calc__banner'>
                 <div className='dpa-calc__banner-inner'>
@@ -60,7 +57,6 @@ const RiskCalculatorPage = () => {
 
             <div className='dpa-calc__content'>
                 <div className='dpa-calc__layout'>
-
                     {/* ── Inputs ──────────────────────────────── */}
                     <div className='dpa-calc__panel'>
                         <h2 className='dpa-calc__panel-title'>Your Parameters</h2>
@@ -164,7 +160,9 @@ const RiskCalculatorPage = () => {
                                     <div className='dpa-calc__result-icon'>💰</div>
                                     <div className='dpa-calc__result-body'>
                                         <div className='dpa-calc__result-label'>Potential Profit per Win</div>
-                                        <div className='dpa-calc__result-value'>${result.potential_profit.toFixed(2)}</div>
+                                        <div className='dpa-calc__result-value'>
+                                            ${result.potential_profit.toFixed(2)}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -179,7 +177,9 @@ const RiskCalculatorPage = () => {
                                 <div className='dpa-calc__result-card'>
                                     <div className='dpa-calc__result-icon'>🔢</div>
                                     <div className='dpa-calc__result-body'>
-                                        <div className='dpa-calc__result-label'>Max Consecutive Losses before Blowup</div>
+                                        <div className='dpa-calc__result-label'>
+                                            Max Consecutive Losses before Blowup
+                                        </div>
                                         <div className='dpa-calc__result-value'>{result.max_trades} trades</div>
                                     </div>
                                 </div>
@@ -200,8 +200,12 @@ const RiskCalculatorPage = () => {
                                             className='dpa-calc__risk-bar'
                                             style={{
                                                 width: `${Math.min((parseFloat(risk_pct) / 20) * 100, 100)}%`,
-                                                background: parseFloat(risk_pct) <= 2 ? '#2e7d32' :
-                                                    parseFloat(risk_pct) <= 5 ? '#f57c00' : '#c62828',
+                                                background:
+                                                    parseFloat(risk_pct) <= 2
+                                                        ? '#2e7d32'
+                                                        : parseFloat(risk_pct) <= 5
+                                                          ? '#f57c00'
+                                                          : '#c62828',
                                             }}
                                         />
                                     </div>
@@ -223,9 +227,15 @@ const RiskCalculatorPage = () => {
                         {[
                             { icon: '✅', tip: 'Never risk more than 2–3% of your account on a single trade.' },
                             { icon: '📉', tip: 'Set a daily loss limit of 5–10% — stop trading if hit.' },
-                            { icon: '🔁', tip: 'A 1:2 reward-to-risk ratio means you only need to win 33% of trades to be profitable.' },
+                            {
+                                icon: '🔁',
+                                tip: 'A 1:2 reward-to-risk ratio means you only need to win 33% of trades to be profitable.',
+                            },
                             { icon: '🧊', tip: 'Reduce position size during losing streaks, not increase it.' },
-                            { icon: '📒', tip: 'Keep a trade journal — review your entries to find patterns in losses.' },
+                            {
+                                icon: '📒',
+                                tip: 'Keep a trade journal — review your entries to find patterns in losses.',
+                            },
                             { icon: '🛑', tip: 'Drawdown over 20%? Take a break and analyse before continuing.' },
                         ].map((t, i) => (
                             <div key={i} className='dpa-calc__tip'>

@@ -54,7 +54,9 @@
         @include mobile-or-tablet-screen {
             opacity: 1;
             max-height: 2rem;
-            transition: opacity 0.25s ease, max-height 0.25s ease;
+            transition:
+                opacity 0.25s ease,
+                max-height 0.25s ease;
 
             &--hide-details {
                 max-height: 0;
@@ -77,7 +79,9 @@
         @include mobile-or-tablet-screen {
             & > :first-child {
                 max-height: 4.8rem;
-                transition: opacity 0.2s ease, max-height 0.2s ease;
+                transition:
+                    opacity 0.2s ease,
+                    max-height 0.2s ease;
             }
 
             &--hide-currency-icon > :first-child {

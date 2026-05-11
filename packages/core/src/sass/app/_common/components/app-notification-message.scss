@@ -34,9 +34,13 @@
     padding: 1.6rem;
     color: var(--text-prominent);
     background-color: var(--general-main-2);
-    box-shadow: 0 4px 6px 0 var(--shadow-menu), 0 4px 6px 0 var(--shadow-menu);
+    box-shadow:
+        0 4px 6px 0 var(--shadow-menu),
+        0 4px 6px 0 var(--shadow-menu);
     overflow: hidden;
-    transition: transform 0.25s ease, opacity 0.25s linear;
+    transition:
+        transform 0.25s ease,
+        opacity 0.25s linear;
     direction: ltr;
 
     &--enter-done {

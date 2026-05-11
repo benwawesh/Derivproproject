@@ -39,7 +39,7 @@ describe('useGrowthbookIsOn', () => {
                         },
                     },
                     tracking: {},
-                } as any)
+                }) as any
         );
 
         const { result } = renderHook(() => useGrowthbookIsOn({ featureFlag: mockFeatureFlag }));
@@ -63,7 +63,7 @@ describe('useGrowthbookIsOn', () => {
                         },
                     },
                     tracking: {},
-                } as any)
+                }) as any
         );
 
         const { result } = renderHook(() => useGrowthbookIsOn({ featureFlag: mockFeatureFlag }));

@@ -34,8 +34,7 @@ type TLoginUrl = {
 
 export const loginUrl = ({ language }: TLoginUrl) => {
     const server_url = LocalStore.get('config.server_url');
-    const change_login_app_id =
-        window.location.hostname === 'localhost' ? null : LocalStore.get('change_login_app_id');
+    const change_login_app_id = window.location.hostname === 'localhost' ? null : LocalStore.get('change_login_app_id');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const signup_device_cookie = new (CookieStorage as any)('signup_device');
     const signup_device = signup_device_cookie.get('signup_device');

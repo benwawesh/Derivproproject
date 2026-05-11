@@ -34,7 +34,10 @@
     cursor: pointer;
     transition: all 0.2s ease;
 
-    &:hover { border-color: #00a79e; color: #00a79e; }
+    &:hover {
+        border-color: #00a79e;
+        color: #00a79e;
+    }
 
     &--active {
         background: #00a79e;

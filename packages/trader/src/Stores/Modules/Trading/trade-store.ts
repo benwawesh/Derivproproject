@@ -50,7 +50,6 @@ import { ContractType } from 'Stores/Modules/Trading/Helpers/contract-type';
 import { isDigitContractType, isDigitTradeType } from 'Modules/Trading/Helpers/digits';
 import ServerTime from '_common/base/server_time';
 import { processPurchase } from './Actions/purchase';
-import { executeDPATrade } from '../../../Services/dpa-trade-executor';
 import { getUpdatedTicksHistoryStats } from './Helpers/accumulator';
 import { processTradeParams } from './Helpers/process';
 import { action, computed, makeObservable, observable, override, reaction, runInAction, toJS, when } from 'mobx';
@@ -1091,54 +1090,6 @@ export default class TradeStore extends BaseStore {
                 this.is_purchasing_contract = true;
             });
             const is_tick_contract = this.duration_unit === 't';
-
-            // ── DPA funded / marketing intercept ─────────────────────────
-            {
-                const w = window as any;
-                const _is_dpa_funded = w.__dpa_funded_active === true;
-                const _is_dpa_marketing =
-                    !_is_dpa_funded && w.__dpa_marketing_active === true && !!w.__dpa_marketing_account;
-                console.warn(
-                    '[DPA intercept] funded:',
-                    _is_dpa_funded,
-                    '| marketing:',
-                    _is_dpa_marketing,
-                    '| __dpa_marketing_active:',
-                    w.__dpa_marketing_active,
-                    '| __dpa_marketing_account:',
-                    !!w.__dpa_marketing_account,
-                    '| __dpa_funded_active:',
-                    w.__dpa_funded_active
-                );
-                if (_is_dpa_funded || _is_dpa_marketing) {
-                    const params = {
-                        contract_type: type,
-                        symbol: this.symbol,
-                        stake: Number(price),
-                        duration_ticks: is_tick_contract ? Number(this.duration) : 5,
-                        barrier: isDigitContractType(type) ? Number(this.last_digit) : null,
-                        currency: this.root_store.client.currency ?? 'USD',
-                        is_funded: _is_dpa_funded,
-                    };
-                    executeDPATrade(params)
-                        .then(result => {
-                            const ev = _is_dpa_funded ? 'dpa_funded_trade_completed' : 'dpa_marketing_trade_completed';
-                            window.dispatchEvent(
-                                new CustomEvent(ev, { detail: { profit: result.profit, payout: result.payout } })
-                            );
-                            window.dispatchEvent(new CustomEvent('dpa_dtrader_trade_result', { detail: result }));
-                        })
-                        .catch((err: Error) => console.warn('[DPA D-Trader] trade failed:', err.message))
-                        .finally(() => {
-                            runInAction(() => {
-                                this.is_purchase_enabled = true;
-                                this.is_purchasing_contract = false;
-                            });
-                        });
-                    return;
-                }
-            }
-            // ─────────────────────────────────────────────────────────────
 
             processPurchase(proposal_id, price).then(
                 action((response: TResponse<Buy, BuyContractResponse, 'buy'>) => {

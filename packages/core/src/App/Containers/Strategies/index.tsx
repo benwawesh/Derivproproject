@@ -23,7 +23,7 @@ const STRATEGIES = [
     },
     {
         id: 2,
-        name: 'D\'Alembert',
+        name: "D'Alembert",
         category: 'Recovery',
         difficulty: 'Beginner',
         summary: 'Increase stake by 1 unit after a loss, decrease by 1 unit after a win. Gentler than Martingale.',
@@ -67,7 +67,7 @@ const STRATEGIES = [
         summary: 'Consistently trade "Over 2" on Volatility 100 when the signal shows 80%+ hit rate.',
         how_it_works: [
             'Open the Analysis Tool and select Volatility 100 → Over/Under.',
-            'Check the Over 2 hit rate — only trade when it\'s above 80%.',
+            "Check the Over 2 hit rate — only trade when it's above 80%.",
             'Use a fixed stake (1–2% of balance).',
             'Trade in batches of 10–20 trades, then review performance.',
         ],
@@ -134,19 +134,18 @@ const DIFF_COLORS: Record<string, string> = {
 };
 
 const StrategiesPage = () => {
-    const [category, setCategory]     = useState('All');
+    const [category, setCategory] = useState('All');
     const [difficulty, setDifficulty] = useState('All');
-    const [expanded, setExpanded]     = useState<number | null>(null);
+    const [expanded, setExpanded] = useState<number | null>(null);
 
     const filtered = STRATEGIES.filter(s => {
-        const matchCat  = category === 'All' || s.category === category;
+        const matchCat = category === 'All' || s.category === category;
         const matchDiff = difficulty === 'All' || s.difficulty === difficulty;
         return matchCat && matchDiff;
     });
 
     return (
         <div className='dpa-strat'>
-
             <div className='dpa-strat__banner'>
                 <div className='dpa-strat__banner-inner'>
                     <span className='dpa-strat__banner-tag'>TRADING EDUCATION</span>
@@ -158,7 +157,6 @@ const StrategiesPage = () => {
             </div>
 
             <div className='dpa-strat__content'>
-
                 {/* ── Filters ───────────────────────────────── */}
                 <div className='dpa-strat__filters'>
                     <div className='dpa-strat__filter-group'>
@@ -203,7 +201,10 @@ const StrategiesPage = () => {
                                 <div className='dpa-strat__card-meta'>
                                     <span
                                         className='dpa-strat__diff-badge'
-                                        style={{ color: DIFF_COLORS[s.difficulty], background: `${DIFF_COLORS[s.difficulty]}18` }}
+                                        style={{
+                                            color: DIFF_COLORS[s.difficulty],
+                                            background: `${DIFF_COLORS[s.difficulty]}18`,
+                                        }}
                                     >
                                         {s.difficulty}
                                     </span>
@@ -239,13 +240,17 @@ const StrategiesPage = () => {
                                             <div className='dpa-strat__detail-section'>
                                                 <h4>Pros</h4>
                                                 <ul className='dpa-strat__pros'>
-                                                    {s.pros.map((p, i) => <li key={i}>✓ {p}</li>)}
+                                                    {s.pros.map((p, i) => (
+                                                        <li key={i}>✓ {p}</li>
+                                                    ))}
                                                 </ul>
                                             </div>
                                             <div className='dpa-strat__detail-section'>
                                                 <h4>Cons</h4>
                                                 <ul className='dpa-strat__cons'>
-                                                    {s.cons.map((c, i) => <li key={i}>✗ {c}</li>)}
+                                                    {s.cons.map((c, i) => (
+                                                        <li key={i}>✗ {c}</li>
+                                                    ))}
                                                 </ul>
                                             </div>
                                         </div>

@@ -4,20 +4,20 @@ This repository contains the static HTML, Javascript, CSS, and images content of
 
 **In this document**
 
--   [Other documents](#other-documents)
--   [Installation](#installation)
--   [How to work with this project](#how-to-work-with-this-project)
-    -   [Deploy to your gh-pages for the first time](#deploy-to-your-gh-pages-for-the-first-time)
-    -   [Deploy to the root of the gh-pages](#deploy-to-the-root-of-the-gh-pages)
-    -   [Clean root and deploy to it](#clean-root-and-deploy-to-it)
-    -   [Deploy to test folder](#deploy-to-test-folder)
-    -   [Preview on your local machine](#preview-on-your-local-machine)
--   [Miscellaneous](#Miscellaneous)
--   [Selenium tests](#selenium-tests)
+- [Other documents](#other-documents)
+- [Installation](#installation)
+- [How to work with this project](#how-to-work-with-this-project)
+    - [Deploy to your gh-pages for the first time](#deploy-to-your-gh-pages-for-the-first-time)
+    - [Deploy to the root of the gh-pages](#deploy-to-the-root-of-the-gh-pages)
+    - [Clean root and deploy to it](#clean-root-and-deploy-to-it)
+    - [Deploy to test folder](#deploy-to-test-folder)
+    - [Preview on your local machine](#preview-on-your-local-machine)
+- [Miscellaneous](#Miscellaneous)
+- [Selenium tests](#selenium-tests)
 
 ## Other documents
 
--   [Modules docs](docs/Modules/README.md) - Contains implementation guides (i.e., scaffolding, code usage)
+- [Modules docs](docs/Modules/README.md) - Contains implementation guides (i.e., scaffolding, code usage)
 
 ## Installation
 
@@ -25,8 +25,8 @@ In order to work on your own version of the Deriv Javascript and CSS, please **f
 
 You will also need to install the following on your development machine:
 
--   Node.js (10.14.2 or higher is recommended) and NPM (see <https://nodejs.org/en/download/package-manager/>)
--   Go to project root, then run `npm install`
+- Node.js (10.14.2 or higher is recommended) and NPM (see <https://nodejs.org/en/download/package-manager/>)
+- Go to project root, then run `npm install`
 
 ### Use a custom domain
 
@@ -43,7 +43,7 @@ In order to use your custom domain, please put it in a file named `CNAME` inside
 
 2.  In `src/config.js`: Insert the `Application ID` of your registered application in `user_app_id`.
 
-    -   **NOTE:** In order to avoid accidentally committing personal changes to this file, use `git update-index --assume-unchanged src/config.js`
+    - **NOTE:** In order to avoid accidentally committing personal changes to this file, use `git update-index --assume-unchanged src/config.js`
 
 3.  Set `NODE_ENV` to `development` with `export NODE_ENV=development`
 
@@ -76,21 +76,21 @@ npm run deploy:folder "br_my_test_folder"
 
 ### Preview on your local machine
 
--   Edit your `/etc/hosts` file to include this domain:
+- Edit your `/etc/hosts` file to include this domain:
 
 ```
 127.0.0.1   localhost.binary.sx
 ```
 
--   To preview your changes locally for the first time, run `npm start`:
-    -   It will run all tests, compile all CSS, and JS/JSX as well as watch for further js/jsx/css changes and rebuild on every change you make.
--   To preview your changes locally without any tests, run `npm run serve`
-    -   It will watch for JS/JSX/CSS changes and rebuild on every change you make.
--   To run all tests, run `npm run test`
+- To preview your changes locally for the first time, run `npm start`:
+    - It will run all tests, compile all CSS, and JS/JSX as well as watch for further js/jsx/css changes and rebuild on every change you make.
+- To preview your changes locally without any tests, run `npm run serve`
+    - It will watch for JS/JSX/CSS changes and rebuild on every change you make.
+- To run all tests, run `npm run test`
 
 ## Miscellaneous
 
--   In Webstorm, right-click on `src`, hover over `Mark directory as`, and click `Resource root` to enable import alias resolution.
+- In Webstorm, right-click on `src`, hover over `Mark directory as`, and click `Resource root` to enable import alias resolution.
 
 ## Selenium tests
 

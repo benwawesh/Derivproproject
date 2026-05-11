@@ -44,7 +44,7 @@ const AccountStatusList = [
     'withdrawal_locked',
 ] as const;
 
-type TAccountStatus = typeof AccountStatusList[number];
+type TAccountStatus = (typeof AccountStatusList)[number];
 
 /**
  * Custom hook to check if a particular account status is present.

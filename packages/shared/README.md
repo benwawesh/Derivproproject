@@ -4,12 +4,12 @@
 
 **In this document**
 
--   [Usage](#usage)
-    -   [Base styles](#base-styles)
-        -   [Resources loader](#resources-loader)
-        -   [Browser css reset](#browser-css-reset)
-        -   [Google fonts](#google-fonts)
-    -   [ Utility functions](#utility-functions)
+- [Usage](#usage)
+    - [Base styles](#base-styles)
+        - [Resources loader](#resources-loader)
+        - [Browser css reset](#browser-css-reset)
+        - [Google fonts](#google-fonts)
+    - [ Utility functions](#utility-functions)
 
 ## Usage
 

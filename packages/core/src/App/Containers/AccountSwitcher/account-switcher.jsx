@@ -204,6 +204,7 @@ const AccountSwitcher = observer(({ history, is_mobile, is_visible }) => {
         setIsFundedSelected(true);
         setActiveTabIndex(2);
         closeAccountsDialog();
+
         // Suppress marketing display when switching to funded
         window.__dpa_marketing_active = false;
         if (typeof window.__dpa_isMarketingActive === 'function') window.__dpa_isMarketingActive = () => false;
@@ -739,7 +740,7 @@ const AccountSwitcher = observer(({ history, is_mobile, is_visible }) => {
                                                 }}
                                                 onClick={() => {
                                                     closeAccountsDialog();
-                                                    window.location.href = '/challenge';
+                                                    history.push('/challenge');
                                                 }}
                                             >
                                                 <div
@@ -859,7 +860,7 @@ const AccountSwitcher = observer(({ history, is_mobile, is_visible }) => {
                                                 }}
                                                 onClick={() => {
                                                     closeAccountsDialog();
-                                                    window.location.href = '/challenge';
+                                                    history.push('/challenge');
                                                 }}
                                             >
                                                 <div

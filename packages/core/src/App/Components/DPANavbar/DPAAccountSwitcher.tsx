@@ -261,7 +261,7 @@ const DPAAccountSwitcher = observer(() => {
                             className='dpa-acc-switcher__item dpa-acc-switcher__item--funded-cta'
                             onClick={() => {
                                 setOpen(false);
-                                window.location.href = '/challenge';
+                                history.push('/challenge');
                             }}
                         >
                             <div className='dpa-acc-switcher__icon dpa-acc-switcher__icon--funded'>F</div>

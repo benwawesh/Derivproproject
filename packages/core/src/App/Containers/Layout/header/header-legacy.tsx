@@ -107,8 +107,9 @@ const HeaderLegacy = observer(() => {
 
     const isExcludedRoute = excludedRoutes.some(route => window.location.pathname.includes(route));
 
+    const is_derivprofundedacademy = /derivprofundedacademy\.com/.test(window.location.hostname);
     if (
-        (!is_client_store_initialized && !isExcludedRoute) ||
+        (!is_client_store_initialized && !isExcludedRoute && !is_derivprofundedacademy) ||
         (has_wallet && !isHubRedirectionLoaded && !isExcludedRoute) ||
         (has_wallet && isHubRedirectionLoaded && !isExcludedRoute && isHubRedirectionEnabled)
     ) {

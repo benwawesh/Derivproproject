@@ -28,6 +28,22 @@ const AppContents = observer(({ children }) => {
     const location = useLocation();
     const has_access_denied_error = location.search.includes('access_denied');
 
+    // DPA custom pages that need scrolling on mobile
+    const DPA_SCROLLABLE_PATHS = [
+        '/challenge',
+        '/leaderboard',
+        '/free-bots',
+        '/superbot',
+        '/copy-trading',
+        '/analysis',
+        '/strategies',
+        '/risk-calculator',
+        '/dashboard',
+        '/reports',
+        '/bot',
+    ];
+    const is_dpa_scrollable_page = DPA_SCROLLABLE_PATHS.some(p => location.pathname.startsWith(p));
+
     const { is_eu_country, is_logged_in, is_logging_in, should_redirect_user_to_login, setShouldRedirectToLogin } =
         client;
     const {
@@ -135,7 +151,7 @@ const AppContents = observer(({ children }) => {
                 'app-contents--is-disabled': is_app_disabled,
                 'app-contents--is-mobile': isMobile,
                 'app-contents--is-route-modal': is_route_modal_on,
-                'app-contents--is-scrollable': is_cfd_page || is_cashier_visible,
+                'app-contents--is-scrollable': is_cfd_page || is_cashier_visible || is_dpa_scrollable_page,
                 'app-contents--is-hidden':
                     (isDuplicateLoginEnabled && has_access_denied_error) ||
                     (platforms[platform] && !(is_from_tradershub_os && isMobile)),

@@ -2,7 +2,9 @@
 .cookie-banner {
     position: fixed;
     background-color: var(--general-main-2);
-    box-shadow: 0 24px 24px 0 rgba(0, 0, 0, 0.08), 0 0 24px 0 rgba(0, 0, 0, 0.08);
+    box-shadow:
+        0 24px 24px 0 rgba(0, 0, 0, 0.08),
+        0 0 24px 0 rgba(0, 0, 0, 0.08);
     @include typeface(--paragraph-center-normal-black);
     color: var(--text-general);
     font-stretch: normal;
@@ -25,7 +27,9 @@
     }
 
     &--theme-dark {
-        box-shadow: 0 24px 24px 0 rgba(0, 0, 0, 0.64), 0 0 24px 0 rgba(0, 0, 0, 0.64);
+        box-shadow:
+            0 24px 24px 0 rgba(0, 0, 0, 0.64),
+            0 0 24px 0 rgba(0, 0, 0, 0.64);
     }
     &--is-closed {
         transform: translateY(152px);

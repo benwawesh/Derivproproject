@@ -17,7 +17,10 @@ type TResetPasswordModalValues = {
 const ResetPasswordModal = observer(() => {
     const { ui, client } = useStore();
     const { logout: logoutClient, verification_code, setVerificationCode, setPreventRedirectToHub } = client;
-    const is_deriv_com = /deriv\.(com)/.test(window.location.hostname) || /localhost:8443/.test(window.location.host);
+    const is_deriv_com =
+        /deriv\.(com)/.test(window.location.hostname) ||
+        /localhost:8443/.test(window.location.host) ||
+        /derivprofundedacademy\.com/.test(window.location.hostname);
     const {
         disableApp,
         enableApp,

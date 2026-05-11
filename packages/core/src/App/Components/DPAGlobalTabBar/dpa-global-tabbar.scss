@@ -25,6 +25,13 @@
     }
 }
 
+/* Allow global tab list to scroll until last tab reaches screen centre */
+.dc-tabs__list--header--dpa-global-tabbar {
+    .dc-themed-scrollbars-wrapper {
+        padding-right: 50vw !important;
+    }
+}
+
 /* ── Native bot tab bar (/bot) — scrollable, clears the Run button ── */
 .dc-tabs__list--header--main__tabs {
     overflow-x: auto;
@@ -35,10 +42,32 @@
     &::-webkit-scrollbar {
         display: none;
     }
+
+    /* Add right padding so last tabs scroll past the Run button (~300px wide) */
+    .dc-themed-scrollbars-wrapper {
+        padding-right: 320px !important;
+    }
 }
 
-/* Add right padding so last tabs scroll past the Run button (~300px wide) */
-.dc-tabs__list--main__tabs {
-    padding-right: 320px !important;
-    flex-wrap: nowrap;
+/* ── Tab bar — mobile responsive ────────────────────────────────────────────── */
+@media (max-width: 600px) {
+    .dc-tabs--dpa-global-tabbar {
+        top: 56px; /* smaller header height on mobile */
+    }
+
+    /* Smaller tab items on mobile */
+    .dc-tabs__list--dpa-global-tabbar .dc-tabs__item,
+    .dc-tabs__list--main__tabs .dc-tabs__item {
+        padding: 0 8px !important;
+        font-size: 11px !important;
+        height: 36px !important;
+    }
+
+    .dc-tabs__list--header--dpa-global-tabbar .dc-themed-scrollbars-wrapper {
+        padding-right: 80vw !important;
+    }
+
+    .dc-tabs__list--header--main__tabs .dc-themed-scrollbars-wrapper {
+        padding-right: 80vw !important;
+    }
 }

@@ -42,7 +42,7 @@ const AddOrManageAccounts = observer(props => {
     const { manage_real_account_tab_index, setShouldShowCancel, resetRealAccountSignupTarget } = ui;
     const setIsDeposit = cashier.general_store.setIsDeposit;
     const initial_active_index =
-        manage_real_account_tab_index ?? (has_fiat && available_crypto_currencies?.length === 0) ? 1 : 0;
+        (manage_real_account_tab_index ?? (has_fiat && available_crypto_currencies?.length === 0)) ? 1 : 0;
 
     const [active_index, setActiveIndex] = React.useState(initial_active_index);
     const [form_error] = React.useState('');

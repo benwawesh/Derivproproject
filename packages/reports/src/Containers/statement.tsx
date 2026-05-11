@@ -202,10 +202,13 @@ const Statement = observer(({ component_icon }: TStatement) => {
     if (error) return <p>{error}</p>;
 
     const columns: TGetStatementTableColumnsTemplate = getStatementTableColumnsTemplate(currency, isDesktop);
-    const columns_map = columns.reduce((map, item) => {
-        map[item.col_index as TColIndex] = item;
-        return map;
-    }, {} as Record<TColIndex, typeof columns[number]>);
+    const columns_map = columns.reduce(
+        (map, item) => {
+            map[item.col_index as TColIndex] = item;
+            return map;
+        },
+        {} as Record<TColIndex, (typeof columns)[number]>
+    );
 
     const mobileRowRenderer = ({
         row,

@@ -448,3 +448,44 @@
         }
     }
 }
+
+/* ── FreeBots — mobile responsive ──────────────────────────────────────────── */
+@media (max-width: 600px) {
+    .dpa-bots {
+        &__banner {
+            padding: 24px 16px;
+        }
+        &__banner-title {
+            font-size: 22px;
+        }
+        &__banner-sub {
+            font-size: 14px;
+        }
+        &__list {
+            padding: 12px;
+        }
+        &__grid {
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+        &__card {
+            padding: 14px;
+        }
+        &__empty-state {
+            padding: 40px 16px;
+            h3 {
+                font-size: 16px;
+            }
+        }
+        &__empty-icon,
+        &__panel-empty-icon {
+            font-size: 36px;
+        }
+        &__panel {
+            height: 400px;
+        }
+        &__panel-empty {
+            padding: 24px 16px;
+        }
+    }
+}

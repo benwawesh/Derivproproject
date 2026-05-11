@@ -415,3 +415,50 @@
         line-height: 1.6;
     }
 }
+
+/* ── CopyTrading — mobile responsive ───────────────────────────────────────── */
+@media (max-width: 600px) {
+    .dpa-copy {
+        &__banner-inner {
+            padding: 24px 16px;
+        }
+        &__banner-title {
+            font-size: 22px;
+        }
+        &__banner-sub {
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+        &__banner-stats {
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        &__banner-stat-val {
+            font-size: 20px;
+        }
+        &__grid {
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+        &__card {
+            padding: 16px;
+            gap: 12px;
+        }
+        &__empty-state {
+            padding: 40px 16px;
+            h3 {
+                font-size: 17px;
+            }
+        }
+        &__empty-icon {
+            font-size: 40px;
+        }
+        &__how {
+            padding: 20px 16px;
+        }
+        &__how-title {
+            font-size: 17px;
+            margin-bottom: 16px;
+        }
+    }
+}

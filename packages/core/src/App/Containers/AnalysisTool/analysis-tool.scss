@@ -345,3 +345,61 @@
         line-height: 1.6;
     }
 }
+
+/* ── AnalysisTool — mobile responsive ──────────────────────────────────────── */
+@media (max-width: 600px) {
+    .dpa-analysis {
+        &__banner-inner {
+            padding: 24px 16px;
+        }
+        &__banner-title {
+            font-size: 22px;
+        }
+        &__banner-sub {
+            font-size: 14px;
+        }
+        &__selector-card {
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        &__selector-row {
+            flex-direction: column;
+            gap: 12px;
+        }
+        &__best-signal {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        &__best-signal-icon {
+            font-size: 28px;
+        }
+        &__best-signal-value {
+            font-size: 17px;
+        }
+        &__signals {
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        &__signal-rate {
+            font-size: 24px;
+        }
+        &__signal-card {
+            padding: 12px;
+        }
+        &__no-signals {
+            padding: 32px 16px;
+        }
+        &__no-signals-icon {
+            font-size: 36px;
+        }
+        &__placeholder {
+            padding: 40px 16px;
+        }
+        &__placeholder-icon {
+            font-size: 40px;
+        }
+    }
+}

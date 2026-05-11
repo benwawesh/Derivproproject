@@ -29,10 +29,19 @@ export const processPurchase = async (
         w.__dpa_funded_active
     );
     if (is_dpa_funded || is_dpa_marketing) {
-        console.warn('[DPA purchase.ts] BLOCKING WS.buy — DPA mode active');
-        // Return a never-resolving promise to fully block the buy.
-        // The trade-store intercept above this call already handles execution + balance update.
-        return new Promise(() => {}) as any;
+        const execute = (w as any).__dpa_execute_dtrader_buy;
+        if (typeof execute === 'function') {
+            const result = execute(proposal_id, price);
+            if (result) return Promise.resolve(result) as any;
+        }
+        // Intercept not ready (params not captured yet) — return a silent error so
+        // D-Trader calls enablePurchase() and the user can retry immediately.
+        // 'InvalidToken' code suppresses the error toast in trade-store.
+        return Promise.resolve({
+            error: { code: 'InvalidToken', message: 'DPA: trade interceptor not ready, please try again.' },
+            msg_type: 'buy',
+            echo_req: { buy: proposal_id, price: Number(price) },
+        }) as any;
     }
     return WS.buy({
         proposal_id,

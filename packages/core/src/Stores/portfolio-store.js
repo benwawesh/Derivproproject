@@ -121,6 +121,18 @@ export default class PortfolioStore extends BaseStore {
         WS.subscribeProposalOpenContract(null, this.proposalOpenContractQueueHandler);
         WS.subscribeTransaction(this.transactionHandler);
         this.has_subscribed_to_poc_and_transaction = true;
+        // Allow DTrader intercept to feed fake proposal_open_contract messages directly
+        // eslint-disable-next-line no-restricted-syntax
+        globalThis['__dpa_inject_poc_response'] = response => {
+            // eslint-disable-next-line no-console
+            console.warn(
+                '[DPA portfolio] inject called | contract_id:',
+                response?.proposal_open_contract?.contract_id,
+                '| status:',
+                response?.proposal_open_contract?.status
+            );
+            this.proposalOpenContractQueueHandler(response);
+        };
     }
 
     clearTable() {

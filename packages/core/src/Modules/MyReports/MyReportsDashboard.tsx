@@ -1,7 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-    LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
-    XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+    LineChart,
+    Line,
+    BarChart,
+    Bar,
+    PieChart,
+    Pie,
+    Cell,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+    Legend,
 } from 'recharts';
 import { getUserTradesByAccountType, getParticipant, supabase } from 'Services/supabase';
 import './MyReportsDashboard.scss';
@@ -50,8 +61,8 @@ const filterByTimeFrame = (trades: Trade[], tf: TimeFrame): Trade[] => {
     if (tf === 'all') return trades;
     const now = new Date();
     const cutoff = new Date();
-    if (tf === 'day')   cutoff.setHours(0, 0, 0, 0);
-    if (tf === 'week')  cutoff.setDate(now.getDate() - 7);
+    if (tf === 'day') cutoff.setHours(0, 0, 0, 0);
+    if (tf === 'week') cutoff.setDate(now.getDate() - 7);
     if (tf === 'month') cutoff.setDate(now.getDate() - 30);
     return trades.filter(t => new Date(t.timestamp) >= cutoff);
 };
@@ -82,8 +93,18 @@ const buildDailyPnL = (trades: Trade[]) => {
 };
 
 // ── Progress Bar ───────────────────────────────────────────────────────────────
-const ProgressBar = ({ label, value, max, color, suffix = '$' }: {
-    label: string; value: number; max: number; color: string; suffix?: string;
+const ProgressBar = ({
+    label,
+    value,
+    max,
+    color,
+    suffix = '$',
+}: {
+    label: string;
+    value: number;
+    max: number;
+    color: string;
+    suffix?: string;
 }) => {
     const pct = max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0;
     return (
@@ -91,7 +112,9 @@ const ProgressBar = ({ label, value, max, color, suffix = '$' }: {
             <div className='mrd-progress__header'>
                 <span className='mrd-progress__label'>{label}</span>
                 <span className='mrd-progress__value' style={{ color }}>
-                    {suffix}{value.toFixed(2)} / {suffix}{max.toFixed(2)}
+                    {suffix}
+                    {value.toFixed(2)} / {suffix}
+                    {max.toFixed(2)}
                 </span>
             </div>
             <div className='mrd-progress__track'>
@@ -103,12 +126,24 @@ const ProgressBar = ({ label, value, max, color, suffix = '$' }: {
 };
 
 // ── Stat Card ──────────────────────────────────────────────────────────────────
-const StatCard = ({ label, value, sub, highlight, color }: {
-    label: string; value: string; sub?: string; highlight?: boolean; color?: string;
+const StatCard = ({
+    label,
+    value,
+    sub,
+    highlight,
+    color,
+}: {
+    label: string;
+    value: string;
+    sub?: string;
+    highlight?: boolean;
+    color?: string;
 }) => (
     <div className={`mrd-stat${highlight ? ' mrd-stat--highlight' : ''}`}>
         <div className='mrd-stat__label'>{label}</div>
-        <div className='mrd-stat__value' style={color ? { color } : undefined}>{value}</div>
+        <div className='mrd-stat__value' style={color ? { color } : undefined}>
+            {value}
+        </div>
         {sub && <div className='mrd-stat__sub'>{sub}</div>}
     </div>
 );
@@ -189,58 +224,86 @@ const MyReportsDashboard = ({ accountType, loginid }: MyReportsDashboardProps) =
     const trades = useMemo(() => filterByTimeFrame(allTrades, timeFrame), [allTrades, timeFrame]);
 
     const stats = useMemo(() => {
-        const wins    = trades.filter(t => t.status === 'win').length;
-        const losses  = trades.filter(t => t.status === 'loss').length;
-        const total   = trades.length;
+        const wins = trades.filter(t => t.status === 'win').length;
+        const losses = trades.filter(t => t.status === 'loss').length;
+        const total = trades.length;
         const winRate = total > 0 ? (wins / total) * 100 : 0;
         const grossProfit = trades.filter(t => t.profit > 0).reduce((s, t) => s + t.profit, 0);
-        const grossLoss   = Math.abs(trades.filter(t => t.profit < 0).reduce((s, t) => s + t.profit, 0));
-        const netProfit   = grossProfit - grossLoss;
-        const avgWin      = wins   > 0 ? grossProfit / wins   : 0;
-        const avgLoss     = losses > 0 ? grossLoss   / losses : 0;
+        const grossLoss = Math.abs(trades.filter(t => t.profit < 0).reduce((s, t) => s + t.profit, 0));
+        const netProfit = grossProfit - grossLoss;
+        const avgWin = wins > 0 ? grossProfit / wins : 0;
+        const avgLoss = losses > 0 ? grossLoss / losses : 0;
         const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : 0;
-        const profits      = trades.map(t => t.profit);
-        const bestTrade    = profits.length ? Math.max(...profits) : 0;
-        const worstTrade   = profits.length ? Math.min(...profits) : 0;
+        const profits = trades.map(t => t.profit);
+        const bestTrade = profits.length ? Math.max(...profits) : 0;
+        const worstTrade = profits.length ? Math.min(...profits) : 0;
 
         let streak = 0;
         let streakType = '';
         for (let i = 0; i < trades.length; i++) {
-            if (i === 0) { streak = 1; streakType = trades[i].status; }
-            else if (trades[i].status === streakType) streak++;
+            if (i === 0) {
+                streak = 1;
+                streakType = trades[i].status;
+            } else if (trades[i].status === streakType) streak++;
             else break;
         }
 
-        return { wins, losses, total, winRate, grossProfit, grossLoss, netProfit, avgWin, avgLoss, profitFactor, bestTrade, worstTrade, streak, streakType };
+        return {
+            wins,
+            losses,
+            total,
+            winRate,
+            grossProfit,
+            grossLoss,
+            netProfit,
+            avgWin,
+            avgLoss,
+            profitFactor,
+            bestTrade,
+            worstTrade,
+            streak,
+            streakType,
+        };
     }, [trades]);
 
     const startBalance = accountType === 'funded' ? fundedMeta.initial_balance : 0;
-    const equityCurve  = useMemo(() => buildEquityCurve(trades, startBalance), [trades, startBalance]);
-    const dailyPnL     = useMemo(() => buildDailyPnL(trades), [trades]);
-    const donutData    = useMemo(() => [
-        { name: 'Wins',   value: stats.wins },
-        { name: 'Losses', value: stats.losses },
-    ], [stats]);
+    const equityCurve = useMemo(() => buildEquityCurve(trades, startBalance), [trades, startBalance]);
+    const dailyPnL = useMemo(() => buildDailyPnL(trades), [trades]);
+    const donutData = useMemo(
+        () => [
+            { name: 'Wins', value: stats.wins },
+            { name: 'Losses', value: stats.losses },
+        ],
+        [stats]
+    );
 
     // Funded challenge targets
-    const profitTarget     = fundedMeta.initial_balance * 0.15;
-    const dailyLossLimit   = fundedMeta.initial_balance * 0.05;
-    const maxDrawdownLimit = fundedMeta.initial_balance * 0.10;
-    const pnlVsTarget      = Math.max(0, stats.netProfit);
-    const todayLoss        = Math.abs(trades
-        .filter(t => {
-            const d = new Date(t.timestamp);
-            return d.toDateString() === new Date().toDateString() && t.profit < 0;
-        })
-        .reduce((s, t) => s + t.profit, 0));
+    const profitTarget = fundedMeta.initial_balance * 0.15;
+    const dailyLossLimit = fundedMeta.initial_balance * 0.05;
+    const maxDrawdownLimit = fundedMeta.initial_balance * 0.1;
+    const pnlVsTarget = Math.max(0, stats.netProfit);
+    const todayLoss = Math.abs(
+        trades
+            .filter(t => {
+                const d = new Date(t.timestamp);
+                return d.toDateString() === new Date().toDateString() && t.profit < 0;
+            })
+            .reduce((s, t) => s + t.profit, 0)
+    );
     const drawdown = Math.max(0, fundedMeta.initial_balance - fundedMeta.balance);
 
-    if (isLoading) return (
-        <div className='mrd-loading'><p>Loading your trades...</p></div>
-    );
-    if (error) return (
-        <div className='mrd-loading'><p style={{ color: '#ff444f' }}>Error: {error}</p></div>
-    );
+    if (isLoading)
+        return (
+            <div className='mrd-loading'>
+                <p>Loading your trades...</p>
+            </div>
+        );
+    if (error)
+        return (
+            <div className='mrd-loading'>
+                <p style={{ color: '#ff444f' }}>Error: {error}</p>
+            </div>
+        );
 
     return (
         <div className='mrd'>
@@ -253,12 +316,17 @@ const MyReportsDashboard = ({ accountType, loginid }: MyReportsDashboardProps) =
                     {accountType === 'funded' ? (
                         <>
                             <span className='mrd-header__balance-value'>
-                                ${fundedMeta.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                $
+                                {fundedMeta.balance.toLocaleString('en-US', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                })}
                             </span>
                             <div className='mrd-header__balance-sub'>
-                                Starting: ${fundedMeta.initial_balance.toLocaleString()} &nbsp;|&nbsp;
-                                P&L:&nbsp;
-                                <span style={{ color: stats.netProfit >= 0 ? COLORS.win : COLORS.loss, fontWeight: 600 }}>
+                                Starting: ${fundedMeta.initial_balance.toLocaleString()} &nbsp;|&nbsp; P&L:&nbsp;
+                                <span
+                                    style={{ color: stats.netProfit >= 0 ? COLORS.win : COLORS.loss, fontWeight: 600 }}
+                                >
                                     {stats.netProfit >= 0 ? '+' : ''}${stats.netProfit.toFixed(2)}
                                 </span>
                             </div>
@@ -331,15 +399,22 @@ const MyReportsDashboard = ({ accountType, loginid }: MyReportsDashboardProps) =
                             color={stats.netProfit >= 0 ? COLORS.win : COLORS.loss}
                             highlight
                         />
-                        <StatCard label='Total Trades'  value={String(stats.total)} />
-                        <StatCard label='Win Rate'      value={`${stats.winRate.toFixed(1)}%`} color={stats.winRate >= 50 ? COLORS.win : COLORS.loss} />
-                        <StatCard label='Wins'          value={String(stats.wins)}   color={COLORS.win} />
-                        <StatCard label='Losses'        value={String(stats.losses)} color={COLORS.loss} />
-                        <StatCard label='Profit Factor' value={stats.profitFactor > 0 ? stats.profitFactor.toFixed(2) : '—'} />
-                        <StatCard label='Avg Win'       value={`$${stats.avgWin.toFixed(2)}`}   color={COLORS.win} />
-                        <StatCard label='Avg Loss'      value={`$${stats.avgLoss.toFixed(2)}`}  color={COLORS.loss} />
-                        <StatCard label='Best Trade'    value={`$${stats.bestTrade.toFixed(2)}`} color={COLORS.win} />
-                        <StatCard label='Worst Trade'   value={`$${stats.worstTrade.toFixed(2)}`} color={COLORS.loss} />
+                        <StatCard label='Total Trades' value={String(stats.total)} />
+                        <StatCard
+                            label='Win Rate'
+                            value={`${stats.winRate.toFixed(1)}%`}
+                            color={stats.winRate >= 50 ? COLORS.win : COLORS.loss}
+                        />
+                        <StatCard label='Wins' value={String(stats.wins)} color={COLORS.win} />
+                        <StatCard label='Losses' value={String(stats.losses)} color={COLORS.loss} />
+                        <StatCard
+                            label='Profit Factor'
+                            value={stats.profitFactor > 0 ? stats.profitFactor.toFixed(2) : '—'}
+                        />
+                        <StatCard label='Avg Win' value={`$${stats.avgWin.toFixed(2)}`} color={COLORS.win} />
+                        <StatCard label='Avg Loss' value={`$${stats.avgLoss.toFixed(2)}`} color={COLORS.loss} />
+                        <StatCard label='Best Trade' value={`$${stats.bestTrade.toFixed(2)}`} color={COLORS.win} />
+                        <StatCard label='Worst Trade' value={`$${stats.worstTrade.toFixed(2)}`} color={COLORS.loss} />
                         {stats.streak > 0 && (
                             <StatCard
                                 label='Current Streak'
@@ -397,8 +472,10 @@ const MyReportsDashboard = ({ accountType, loginid }: MyReportsDashboardProps) =
                                 <PieChart>
                                     <Pie
                                         data={donutData}
-                                        cx='50%' cy='50%'
-                                        innerRadius={70} outerRadius={100}
+                                        cx='50%'
+                                        cy='50%'
+                                        innerRadius={70}
+                                        outerRadius={100}
                                         dataKey='value'
                                         animationDuration={800}
                                         label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
@@ -440,7 +517,12 @@ const MyReportsDashboard = ({ accountType, loginid }: MyReportsDashboardProps) =
                                             <td>{t.tradeType}</td>
                                             <td>${t.stake.toFixed(2)}</td>
                                             <td>${t.payout.toFixed(2)}</td>
-                                            <td style={{ color: t.profit >= 0 ? COLORS.win : COLORS.loss, fontWeight: 600 }}>
+                                            <td
+                                                style={{
+                                                    color: t.profit >= 0 ? COLORS.win : COLORS.loss,
+                                                    fontWeight: 600,
+                                                }}
+                                            >
                                                 {t.profit >= 0 ? '+' : ''}${t.profit.toFixed(2)}
                                             </td>
                                             <td>

@@ -40,7 +40,9 @@ const getAuthToken = (client: any): string => {
             const first = Object.values(accounts as Record<string, any>).find((a: any) => a.token);
             if ((first as any)?.token) return (first as any).token;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e) {
+        /* ignore */
+    }
 
     return '';
 };
@@ -51,13 +53,17 @@ export const MultiMarketDiffersBot = () => {
     const [marketStats, setMarketStats] = useState<Record<string, MarketStat>>({});
     const apiServiceRef = React.useRef<DerivApiService | null>(null);
     const [config, setConfig] = useState<BotConfigData | null>(null);
-    const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
+    const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>(
+        'disconnected'
+    );
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const errorSetRef = React.useRef(false);
 
     // Cleanup on unmount
     useEffect(() => {
-        return () => { apiServiceRef.current?.disconnect(); };
+        return () => {
+            apiServiceRef.current?.disconnect();
+        };
     }, []);
 
     const handleTradeUpdate = (tradeResult: any) => {
@@ -127,9 +133,7 @@ export const MultiMarketDiffersBot = () => {
         try {
             const connected = await Promise.race([
                 service.connect(),
-                new Promise<boolean>((_, reject) =>
-                    setTimeout(() => reject(new Error('Connection timed out')), 10000)
-                ),
+                new Promise<boolean>((_, reject) => setTimeout(() => reject(new Error('Connection timed out')), 10000)),
             ]);
 
             if (!connected) {
@@ -165,7 +169,6 @@ export const MultiMarketDiffersBot = () => {
                 botConfig.mode,
                 botConfig.global.targetDigit
             );
-
         } catch (error) {
             console.error('[Bot] Failed to start:', error);
             if (!errorSetRef.current) {
@@ -188,30 +191,32 @@ export const MultiMarketDiffersBot = () => {
     };
 
     return (
-        <div className="mm-differs-bot">
-            <div className="mm-differs-bot__container">
+        <div className='mm-differs-bot'>
+            <div className='mm-differs-bot__container'>
                 {/* Header */}
-                <div className="mm-differs-bot__header">
-                    <h1 className="mm-differs-bot__title">Multi-Market Differs Super Bot</h1>
-                    <div className="mm-differs-bot__status">
+                <div className='mm-differs-bot__header'>
+                    <h1 className='mm-differs-bot__title'>Multi-Market Differs Super Bot</h1>
+                    <div className='mm-differs-bot__status'>
                         <span className={`mm-differs-bot__status-badge ${botRunning ? 'running' : 'stopped'}`}>
                             {botRunning ? '🟢 Running' : '⏸ Stopped'}
                         </span>
                         {connectionStatus === 'connecting' && (
-                            <span className="mm-differs-bot__connection-badge connecting">Connecting...</span>
+                            <span className='mm-differs-bot__connection-badge connecting'>Connecting...</span>
                         )}
                         {connectionStatus === 'connected' && (
-                            <span className="mm-differs-bot__connection-badge connected">✓ Connected</span>
+                            <span className='mm-differs-bot__connection-badge connected'>✓ Connected</span>
                         )}
                     </div>
                 </div>
 
                 {/* Error Message */}
                 {errorMessage && (
-                    <div className="mm-differs-bot__error">
-                        <span className="mm-differs-bot__error-icon">⚠️</span>
-                        <span className="mm-differs-bot__error-message">{errorMessage}</span>
-                        <button className="mm-differs-bot__error-close" onClick={clearError}>✕</button>
+                    <div className='mm-differs-bot__error'>
+                        <span className='mm-differs-bot__error-icon'>⚠️</span>
+                        <span className='mm-differs-bot__error-message'>{errorMessage}</span>
+                        <button className='mm-differs-bot__error-close' onClick={clearError}>
+                            ✕
+                        </button>
                     </div>
                 )}
 
@@ -230,7 +235,7 @@ export const MultiMarketDiffersBot = () => {
 
                     {/* Live stats table — only when running */}
                     {botRunning && (
-                        <div className="mm-differs-bot__stats-side">
+                        <div className='mm-differs-bot__stats-side'>
                             <BotDashboard
                                 marketStats={marketStats}
                                 mode={config?.mode || 'global'}

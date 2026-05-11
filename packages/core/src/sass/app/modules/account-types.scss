@@ -21,7 +21,9 @@
     }
     &__box {
         border-radius: 0.4rem;
-        box-shadow: 0 8px 8px 0 var(--shadow-menu), 0 0 8px 0 var(--shadow-menu);
+        box-shadow:
+            0 8px 8px 0 var(--shadow-menu),
+            0 0 8px 0 var(--shadow-menu);
         display: grid;
         margin: 0 auto 4rem;
         padding: 2.4rem;

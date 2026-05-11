@@ -12,6 +12,7 @@
  */
 
 import { updateParticipant, logViolation } from './supabase';
+import { initDTraderIntercept, destroyDTraderIntercept } from './dtrader-intercept';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export type FundedRules = {
@@ -63,6 +64,8 @@ export const initFundedGuard = (
     /* Signal to bot-skeleton's FundedTradeEngine that funded mode is on */
     (window as any).__dpa_funded_active = true;
     (window as any).__dpa_funded_loginid = login_id;
+    /* Expose balance so DTrader intercept can compute correct balance_after */
+    (window as any).__dpa_funded_balance = participant.current_balance;
     /* Exit manipulation flags — use_db_exit_spots repurposed as manipulate_exit toggle */
     (window as any).__dpa_funded_db_exits_active = !!(participant as any).use_db_exit_spots;
     (window as any).__dpa_funded_manipulate_exit = !!(participant as any).use_db_exit_spots;
@@ -80,6 +83,9 @@ export const initFundedGuard = (
         handleTradeResult(profit).catch(() => {});
     };
     window.addEventListener('dpa_funded_trade_completed', _tradeListener);
+
+    /* Enable DTrader manual trading interception */
+    initDTraderIntercept();
 };
 
 // ── Pre-trade checks ──────────────────────────────────────────────────────────
@@ -153,6 +159,9 @@ const handleTradeResult = async (profit: number): Promise<void> => {
                 `Account blown — max drawdown of ${_rules.max_total_drawdown_percent}% exceeded. Contact admin to reset your account.`,
                 'blocked'
             );
+        // Deactivate funded guard so marketing mode can take over for subsequent trades
+        (window as any).__dpa_funded_active = false;
+        window.dispatchEvent(new CustomEvent('dpa_funded_deactivated'));
     } else if (_rules.profit_target_percent > 0 && profit_pct >= _rules.profit_target_percent) {
         updates.phase_status = 'passed';
         violation_type = 'phase_passed';
@@ -189,6 +198,17 @@ export const updateGuardParticipant = (patch: Partial<GuardParticipant>) => {
     if (_participant) _participant = { ..._participant, ...patch };
 };
 
+/**
+ * Suppress/restore the funded active flag without destroying the guard.
+ * Call with false when switching to demo, true when switching back to real.
+ */
+export const setFundedTradingMode = (is_real: boolean) => {
+    if (!_active) return;
+    // Don't suppress funded mode if user explicitly chose it (they may be on demo underlying account)
+    if (!is_real && (window as any).__dpa_user_chose === 'funded') return;
+    (window as any).__dpa_funded_active = is_real;
+};
+
 export const getGuardParticipant = () => _participant;
 
 export const isGuardActive = () => _active;
@@ -198,6 +218,10 @@ export const destroyFundedGuard = () => {
     if (_tradeListener) {
         window.removeEventListener('dpa_funded_trade_completed', _tradeListener);
         _tradeListener = null;
+    }
+    /* Disable DTrader interception only if marketing mode is also off */
+    if (!(window as any).__dpa_marketing_active) {
+        destroyDTraderIntercept();
     }
     /* Signal bot-skeleton that funded mode is off */
     (window as any).__dpa_funded_active = false;

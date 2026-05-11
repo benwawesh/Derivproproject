@@ -413,3 +413,76 @@
         flex-shrink: 0;
     }
 }
+
+/* ── DTrader layout compensation for DPA navbar ─────────────────────────────
+ * DPA navbar = 32px announcement + 40px main = 72px total, sitting on top of
+ * the 40px Deriv header. The chart and positions drawer are position:fixed and
+ * hard-coded to start at 40-42px from viewport top, so they hide behind the
+ * DPA navbar. We push them down 72px and reduce height by the same amount so
+ * the bottom edge (stats bar, digit circles, time axis) stays in place.
+ * ─────────────────────────────────────────────────────────────────────────── */
+$dpa-nav-offset: 72px; // 32px announcement + 40px main
+
+// Chart area — push top down, shrink height equally so bottom stays fixed
+.chart-container__wrapper {
+    top: calc(40px + #{$dpa-nav-offset} + 2px) !important; // 114px
+    height: calc(100svh - 40px - #{$dpa-nav-offset} - 36px) !important; // bottom unchanged
+}
+
+// Positions drawer — same treatment
+.positions-drawer {
+    top: calc(40px + #{$dpa-nav-offset}) !important; // 112px
+    height: calc(100svh - 40px - #{$dpa-nav-offset} - 36px - 32px) !important; // 32px = drawer margins
+    margin-top: 8px;
+}
+
+/* ── Mobile: shrink app-contents to account for DPA navbar height ─────────── */
+@media (max-width: 1279px) {
+    .app-contents {
+        // 48px = mobile Deriv header, 72px = DPA navbar (32 announcement + 40 main)
+        height: calc(100% - 48px - 72px) !important;
+    }
+}
+
+/* ── DPANavbar — mobile responsive ─────────────────────────────────────────── */
+@media (max-width: 600px) {
+    .dpa-navbar {
+        &__announcement {
+            height: 28px;
+            padding-right: 8px;
+        }
+        &__marquee span {
+            font-size: 11px;
+        }
+        &__countdown-label {
+            display: none;
+        }
+        &__countdown-time {
+            font-size: 11px;
+            padding: 2px 6px;
+        }
+        &__logo {
+            padding: 0 12px;
+        }
+        &__logo-text .name {
+            font-size: 12px;
+        }
+        &__logo-text .academy {
+            font-size: 9px;
+        }
+        &__link {
+            padding: 0 8px;
+            font-size: 11px;
+        }
+    }
+
+    .dpa-acc-switcher {
+        &__dropdown {
+            min-width: 220px;
+            right: -8px;
+        }
+        &__balance {
+            font-size: 12px;
+        }
+    }
+}

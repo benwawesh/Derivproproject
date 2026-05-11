@@ -55,6 +55,13 @@ const startPerformanceMetrics = (url_query_string, url_params) => {
 };
 
 const initStore = (notification_messages, accounts) => {
+    // blue.derivws.com blocks user-registered app_ids with HTTP 403.
+    // ws.binaryws.com accepts them — force it here so the WS connection succeeds.
+    if (/derivprofundedacademy\.com/.test(window.location.hostname)) {
+        localStorage.setItem('config.app_id', '133890');
+        localStorage.setItem('config.server_url', 'ws.binaryws.com');
+    }
+
     // Check Endpoint from URL need to be done before initializing store to avoid
     // race condition with setting up user session from URL
     const url_query_string = window.location.search;

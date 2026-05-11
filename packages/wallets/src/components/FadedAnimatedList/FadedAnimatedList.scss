@@ -10,7 +10,9 @@
         &-appear-active {
             opacity: 1;
             grid-template-rows: 1fr;
-            transition: opacity 250ms ease-in, grid-template-rows 250ms ease-in-out;
+            transition:
+                opacity 250ms ease-in,
+                grid-template-rows 250ms ease-in-out;
         }
 
         &-exit {
@@ -21,7 +23,9 @@
         &-exit-active {
             opacity: 0;
             grid-template-rows: 0fr;
-            transition: opacity 250ms ease-in, grid-template-rows 250ms ease-in-out;
+            transition:
+                opacity 250ms ease-in,
+                grid-template-rows 250ms ease-in-out;
         }
 
         &--display-grid {

@@ -144,7 +144,6 @@ const DPANavbar = observer(() => {
     const [competition_duration, setDuration] = useState('monthly');
     const [is_dragging, setIsDragging] = useState(false);
     const [guard_alert, setGuardAlert] = useState<GuardAlert>(null);
-    const [trade_alert, setTradeAlert] = useState<GuardAlert>(null);
     const drag_start_x = useRef(0);
     const drag_scroll = useRef(0);
 
@@ -262,25 +261,6 @@ const DPANavbar = observer(() => {
         return () => window.removeEventListener('dpa_funded_deactivated', onFundedDeactivated);
     }, [loginid]);
 
-    /* ── D-Trader trade result notification ─────────────────────────── */
-    useEffect(() => {
-        const onTradeResult = (e: Event) => {
-            const { is_win, profit, exit_spot, stake, currency: cur } = (e as CustomEvent).detail ?? {};
-            const fmt = (n: number) =>
-                Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            const msg = is_win
-                ? `Exit spot: ${exit_spot}\nProfit: +$${fmt(profit)} ${cur ?? 'USD'}`
-                : `Exit spot: ${exit_spot}\nLoss: -$${fmt(stake)} ${cur ?? 'USD'}`;
-            setTradeAlert({
-                message: msg,
-                type: is_win ? 'passed' : 'blocked',
-                title: is_win ? 'Trade Won!' : 'Trade Lost',
-            });
-        };
-        window.addEventListener('dpa_dtrader_trade_result', onTradeResult);
-        return () => window.removeEventListener('dpa_dtrader_trade_result', onTradeResult);
-    }, []);
-
     /* ── Real-time: admin changes push instantly to user ─────────────── */
     useEffect(() => {
         if (!real_loginid) return;
@@ -338,7 +318,6 @@ const DPANavbar = observer(() => {
     return (
         <>
             <GuardAlertOverlay alert={guard_alert} onClose={() => setGuardAlert(null)} />
-            <GuardAlertOverlay alert={trade_alert} onClose={() => setTradeAlert(null)} />
             <nav className='dpa-navbar'>
                 {/* ── Announcement Bar ───────────────────────────── */}
                 <div className='dpa-navbar__announcement'>

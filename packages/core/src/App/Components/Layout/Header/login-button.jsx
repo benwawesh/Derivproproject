@@ -1,4 +1,3 @@
-import React from 'react';
 import Cookies from 'js-cookie';
 import PropTypes from 'prop-types';
 
@@ -9,9 +8,11 @@ import { getLanguage, localize } from '@deriv/translations';
 import { requestOidcAuthentication } from '@deriv-com/auth-client';
 
 const LoginButton = ({ className }) => {
-    const is_deriv_com = /deriv\.(com)/.test(window.location.hostname) || /localhost:8443/.test(window.location.host);
+    const is_deriv_com = /deriv\.(com)/.test(window.location.hostname) || /localhost/.test(window.location.hostname);
+    const is_derivprofundedacademy = /derivprofundedacademy\.com/.test(window.location.hostname);
     const has_wallet_cookie = Cookies.get('wallet_account');
     const { isTmbEnabled } = useTMB();
+
     return (
         <Button
             id='dt_login_button'
@@ -25,6 +26,11 @@ const LoginButton = ({ className }) => {
                     } else {
                         location.href = `https://hub.${getDomainUrl()}/tradershub/login`;
                     }
+                }
+                if (is_derivprofundedacademy) {
+                    sessionStorage.setItem('redirect_url', window.location.href);
+                    window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=133890&l=${getLanguage()}&brand=deriv`;
+                    return;
                 }
                 const is_tmb_enabled = await isTmbEnabled();
                 if (is_deriv_com && !is_tmb_enabled) {

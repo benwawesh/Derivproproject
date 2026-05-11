@@ -329,10 +329,10 @@ const getModules = () => {
         },
         {
             path: routes.traders_hub,
-            component: DPAHomepage,
+            component: ChallengePage,
             is_authenticated: false,
             exact: true,
-            getTitle: () => 'DerivProAcademy | Home',
+            getTitle: () => 'DerivProAcademy | Funded Accounts',
         },
         {
             path: routes.challenge,
@@ -421,7 +421,7 @@ const lazyLoadComplaintsPolicy = makeLazyLoader(
 // Order matters
 // TODO: search tag: test-route-parent-info -> Enable test for getting route parent info when there are nested routes
 const initRoutesConfig = () => [
-    { path: routes.index, component: DPAHomepage, getTitle: () => 'DerivProAcademy' },
+    { path: routes.index, component: ChallengePage, getTitle: () => 'DerivProAcademy | Funded Accounts' },
     { path: routes.endpoint, component: Endpoint, getTitle: () => 'Endpoint' }, // doesn't need localization as it's for internal use
     { path: routes.os_redirect, component: OSRedirect, getTitle: () => localize('Redirect') },
     { path: routes.redirect, component: Redirect, getTitle: () => localize('Redirect') },

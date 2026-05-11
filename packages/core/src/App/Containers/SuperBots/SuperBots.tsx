@@ -46,7 +46,8 @@ const SUPER_BOTS: TSuperBot[] = [
         id: 'multi-market-differs',
         page: '/superbot/multi-market-differs',
         name: 'Multi-Market Differs Bot',
-        description: 'Execute "Differs" trades on multiple volatility indices simultaneously. Wins when the last digit is DIFFERENT from your target (90% win rate).',
+        description:
+            'Execute "Differs" trades on multiple volatility indices simultaneously. Wins when the last digit is DIFFERENT from your target (90% win rate).',
         market: 'Multi-Market',
         symbol: 'R_100',
         trade_type: 'DIGITDIFF',
@@ -128,7 +129,9 @@ class BotEngine {
         this.ws.onopen = () => this.authorize();
         this.ws.onmessage = e => this.handleMessage(JSON.parse(e.data));
         this.ws.onerror = () => this.onError('Connection error. Please try again.');
-        this.ws.onclose = () => { if (this.running) this.onError('Connection closed.'); };
+        this.ws.onclose = () => {
+            if (this.running) this.onError('Connection closed.');
+        };
     }
 
     stop() {
@@ -149,11 +152,16 @@ class BotEngine {
 
     private getContractType(): { contract_type: string; direction?: string } {
         switch (this.strategy) {
-            case 'rise_fall':   return { contract_type: 'CALL' }; // will alternate
-            case 'even_odd':    return { contract_type: 'DIGITEVEN' };
-            case 'over_under':  return { contract_type: 'DIGITOVER', direction: '5' };
-            case 'matches_differs': return { contract_type: 'DIGITDIFF', direction: '5' };
-            default:            return { contract_type: 'CALL' };
+            case 'rise_fall':
+                return { contract_type: 'CALL' }; // will alternate
+            case 'even_odd':
+                return { contract_type: 'DIGITEVEN' };
+            case 'over_under':
+                return { contract_type: 'DIGITOVER', direction: '5' };
+            case 'matches_differs':
+                return { contract_type: 'DIGITDIFF', direction: '5' };
+            default:
+                return { contract_type: 'CALL' };
         }
     }
 
@@ -162,18 +170,25 @@ class BotEngine {
     private getContractTypeForTick(): string {
         this.tick_count++;
         switch (this.strategy) {
-            case 'rise_fall': return this.tick_count % 2 === 0 ? 'CALL' : 'PUT';
-            case 'even_odd':  return this.tick_count % 2 === 0 ? 'DIGITEVEN' : 'DIGITODD';
-            case 'over_under': return 'DIGITOVER';
-            case 'matches_differs': return 'DIGITDIFF';
-            default: return 'CALL';
+            case 'rise_fall':
+                return this.tick_count % 2 === 0 ? 'CALL' : 'PUT';
+            case 'even_odd':
+                return this.tick_count % 2 === 0 ? 'DIGITEVEN' : 'DIGITODD';
+            case 'over_under':
+                return 'DIGITOVER';
+            case 'matches_differs':
+                return 'DIGITDIFF';
+            default:
+                return 'CALL';
         }
     }
 
     private placeTrade() {
         if (!this.running) return;
         const contract_type = this.getContractTypeForTick();
-        const isDigit = ['DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER', 'DIGITMATCH', 'DIGITDIFF'].includes(contract_type);
+        const isDigit = ['DIGITEVEN', 'DIGITODD', 'DIGITOVER', 'DIGITUNDER', 'DIGITMATCH', 'DIGITDIFF'].includes(
+            contract_type
+        );
         const payload: Record<string, unknown> = {
             buy: '1',
             price: this.stake,
@@ -203,7 +218,10 @@ class BotEngine {
         if (!this.running) return;
 
         if (msg.msg_type === 'authorize') {
-            if (msg.error) { this.onError(msg.error.message); return; }
+            if (msg.error) {
+                this.onError(msg.error.message);
+                return;
+            }
             this.onBalance(msg.authorize?.balance ?? 0);
             setTimeout(() => this.placeTrade(), 1000);
         }
@@ -213,7 +231,10 @@ class BotEngine {
         }
 
         if (msg.msg_type === 'buy') {
-            if (msg.error) { this.onError(msg.error.message); return; }
+            if (msg.error) {
+                this.onError(msg.error.message);
+                return;
+            }
             this.pending_contract_id = msg.buy?.contract_id;
             this.pending_start = Date.now();
             // Subscribe to contract updates
@@ -226,7 +247,7 @@ class BotEngine {
 
             const profit = parseFloat(contract.profit ?? '0');
             const payout = parseFloat(contract.payout ?? '0');
-            const stake  = parseFloat(contract.buy_price ?? String(this.stake));
+            const stake = parseFloat(contract.buy_price ?? String(this.stake));
             const is_win = profit > 0;
 
             const trade: TTrade = {
@@ -266,7 +287,17 @@ class BotEngine {
 }
 
 // ── Super Bot Card ────────────────────────────────────────────────────────────
-const SuperBotCard = ({ bot, onLoad, isLoaded, onNavigate }: { bot: TSuperBot; onLoad: (bot: TSuperBot) => void; isLoaded: boolean; onNavigate: (path: string) => void }) => (
+const SuperBotCard = ({
+    bot,
+    onLoad,
+    isLoaded,
+    onNavigate,
+}: {
+    bot: TSuperBot;
+    onLoad: (bot: TSuperBot) => void;
+    isLoaded: boolean;
+    onNavigate: (path: string) => void;
+}) => (
     <div className={`dpa-premium__card${isLoaded ? ' loaded' : ''}`}>
         <div className='dpa-premium__badge'>{bot.multiMarket ? 'SUPER' : 'PREMIUM'}</div>
         <div className='dpa-premium__card-header'>
@@ -291,22 +322,32 @@ const SuperBotCard = ({ bot, onLoad, isLoaded, onNavigate }: { bot: TSuperBot; o
         </div>
 
         <div className='dpa-premium__tags'>
-            {bot.tags.map((t: string) => <span key={t} className='dpa-premium__tag'>{t}</span>)}
+            {bot.tags.map((t: string) => (
+                <span key={t} className='dpa-premium__tag'>
+                    {t}
+                </span>
+            ))}
         </div>
 
         {bot.multiMarket && bot.markets && (
             <div className='dpa-premium__markets'>
                 <span className='dpa-premium__markets-label'>Markets:</span>
                 <div className='dpa-premium__markets-list'>
-                    {bot.markets.slice(0, 4).map((m: string) => <span key={m} className='dpa-premium__market-tag'>{m}</span>)}
-                    {bot.markets.length > 4 && <span className='dpa-premium__market-tag'>+{bot.markets.length - 4}</span>}
+                    {bot.markets.slice(0, 4).map((m: string) => (
+                        <span key={m} className='dpa-premium__market-tag'>
+                            {m}
+                        </span>
+                    ))}
+                    {bot.markets.length > 4 && (
+                        <span className='dpa-premium__market-tag'>+{bot.markets.length - 4}</span>
+                    )}
                 </div>
             </div>
         )}
 
         <button
             className={`dpa-premium__load-btn${isLoaded ? ' loaded' : ''}`}
-            onClick={() => bot.page ? onNavigate(bot.page) : onLoad(bot)}
+            onClick={() => (bot.page ? onNavigate(bot.page) : onLoad(bot))}
         >
             {`Load ${bot.multiMarket ? 'Super' : 'Premium'} Bot`}
         </button>
@@ -319,14 +360,14 @@ const SuperBotsPage = observer(() => {
     const { is_logged_in, loginid } = client;
     const history = useHistory();
 
-    const [loaded_bot, setLoadedBot]   = useState<TSuperBot | null>(null);
-    const [stake, setStake]            = useState('1.00');
-    const [running, setRunning]        = useState(false);
-    const [session, setSession]        = useState<TSession>(EMPTY_SESSION);
-    const [balance, setBalance]        = useState<number | null>(null);
-    const [error, setError]            = useState('');
-    const [tab, setTab]                = useState<'summary' | 'transactions' | 'journal'>('summary');
-    const engine_ref                   = useRef<BotEngine | null>(null);
+    const [loaded_bot, setLoadedBot] = useState<TSuperBot | null>(null);
+    const [stake, setStake] = useState('1.00');
+    const [running, setRunning] = useState(false);
+    const [session, setSession] = useState<TSession>(EMPTY_SESSION);
+    const [balance, setBalance] = useState<number | null>(null);
+    const [error, setError] = useState('');
+    const [tab, setTab] = useState<'summary' | 'transactions' | 'journal'>('summary');
+    const engine_ref = useRef<BotEngine | null>(null);
 
     const handleLoad = (bot: TSuperBot) => {
         if (running) return;
@@ -339,7 +380,10 @@ const SuperBotsPage = observer(() => {
         if (!loaded_bot || !is_logged_in) return;
         const token = (client as any).getToken?.() ?? sessionStorage.getItem('client.tokens') ?? '';
         const stake_num = parseFloat(stake);
-        if (isNaN(stake_num) || stake_num <= 0) { setError('Please enter a valid stake amount.'); return; }
+        if (isNaN(stake_num) || stake_num <= 0) {
+            setError('Please enter a valid stake amount.');
+            return;
+        }
 
         setError('');
         setRunning(true);
@@ -350,7 +394,7 @@ const SuperBotsPage = observer(() => {
             symbol: loaded_bot.symbol,
             strategy: loaded_bot.strategy,
             stake: stake_num,
-            onTrade: (trade) => {
+            onTrade: trade => {
                 setSession(prev => ({
                     runs: prev.runs + 1,
                     wins: prev.wins + (trade.result === 'WIN' ? 1 : 0),
@@ -361,8 +405,11 @@ const SuperBotsPage = observer(() => {
                     trades: [trade, ...prev.trades].slice(0, 100),
                 }));
             },
-            onBalance: (bal) => setBalance(bal),
-            onError: (msg) => { setError(msg); setRunning(false); },
+            onBalance: bal => setBalance(bal),
+            onError: msg => {
+                setError(msg);
+                setRunning(false);
+            },
         });
         engine_ref.current.start();
     }, [loaded_bot, is_logged_in, loginid, client, stake]);
@@ -377,21 +424,19 @@ const SuperBotsPage = observer(() => {
 
     return (
         <div className='dpa-premium'>
-
             {/* ── Banner ──────────────────────────────────────── */}
             <div className='dpa-premium__banner'>
                 <div className='dpa-premium__banner-inner'>
                     <span className='dpa-premium__banner-tag'>SUPER</span>
                     <h1 className='dpa-premium__banner-title'>Super Bots</h1>
                     <p className='dpa-premium__banner-sub'>
-                        Professionally coded bots that trade live on your Deriv account.
-                        Select a bot, set your stake and click Run.
+                        Professionally coded bots that trade live on your Deriv account. Select a bot, set your stake
+                        and click Run.
                     </p>
                 </div>
             </div>
 
             <div className='dpa-premium__layout'>
-
                 {/* ── Left: Bot List ───────────────────────────── */}
                 <div className='dpa-premium__list'>
                     <div className='dpa-premium__list-header'>
@@ -413,7 +458,6 @@ const SuperBotsPage = observer(() => {
 
                 {/* ── Right: Trading Panel ─────────────────────── */}
                 <div className='dpa-premium__panel'>
-
                     {!loaded_bot ? (
                         <div className='dpa-premium__panel-empty'>
                             <div className='dpa-premium__panel-empty-icon'>🤖</div>
@@ -425,7 +469,9 @@ const SuperBotsPage = observer(() => {
                             {/* Bot info */}
                             <div className='dpa-premium__panel-bot'>
                                 <span className='dpa-premium__panel-name'>{loaded_bot.name}</span>
-                                <span className='dpa-premium__panel-market'>{loaded_bot.market} · {loaded_bot.trade_type}</span>
+                                <span className='dpa-premium__panel-market'>
+                                    {loaded_bot.market} · {loaded_bot.trade_type}
+                                </span>
                             </div>
 
                             {/* Login warning */}
@@ -478,11 +524,15 @@ const SuperBotsPage = observer(() => {
                                     <div className='dpa-premium__stat-grid'>
                                         <div className='dpa-premium__stat-box'>
                                             <span className='dpa-premium__stat-label'>Total Stake</span>
-                                            <span className='dpa-premium__stat-value'>${session.total_stake.toFixed(2)}</span>
+                                            <span className='dpa-premium__stat-value'>
+                                                ${session.total_stake.toFixed(2)}
+                                            </span>
                                         </div>
                                         <div className='dpa-premium__stat-box'>
                                             <span className='dpa-premium__stat-label'>Total Payout</span>
-                                            <span className='dpa-premium__stat-value'>${session.total_payout.toFixed(2)}</span>
+                                            <span className='dpa-premium__stat-value'>
+                                                ${session.total_payout.toFixed(2)}
+                                            </span>
                                         </div>
                                         <div className='dpa-premium__stat-box'>
                                             <span className='dpa-premium__stat-label'>No. of Runs</span>
@@ -498,13 +548,19 @@ const SuperBotsPage = observer(() => {
                                         </div>
                                         <div className='dpa-premium__stat-box'>
                                             <span className='dpa-premium__stat-label'>Total Profit/Loss</span>
-                                            <span className={`dpa-premium__stat-value ${session.profit >= 0 ? 'green' : 'red'}`}>
-                                                {session.profit >= 0 ? '+' : ''}{session.profit.toFixed(2)}
+                                            <span
+                                                className={`dpa-premium__stat-value ${session.profit >= 0 ? 'green' : 'red'}`}
+                                            >
+                                                {session.profit >= 0 ? '+' : ''}
+                                                {session.profit.toFixed(2)}
                                             </span>
                                         </div>
                                     </div>
                                     {session.runs === 0 && (
-                                        <p className='dpa-premium__hint'>When you&apos;re ready to trade, hit <strong>Run</strong>. You&apos;ll be able to track your bot&apos;s performance here.</p>
+                                        <p className='dpa-premium__hint'>
+                                            When you&apos;re ready to trade, hit <strong>Run</strong>. You&apos;ll be
+                                            able to track your bot&apos;s performance here.
+                                        </p>
                                     )}
                                 </div>
                             )}
@@ -534,9 +590,12 @@ const SuperBotsPage = observer(() => {
                                                         <td>${t.stake.toFixed(2)}</td>
                                                         <td>${t.payout.toFixed(2)}</td>
                                                         <td className={t.profit >= 0 ? 'green' : 'red'}>
-                                                            {t.profit >= 0 ? '+' : ''}{t.profit.toFixed(2)}
+                                                            {t.profit >= 0 ? '+' : ''}
+                                                            {t.profit.toFixed(2)}
                                                         </td>
-                                                        <td className={t.result === 'WIN' ? 'green' : 'red'}>{t.result}</td>
+                                                        <td className={t.result === 'WIN' ? 'green' : 'red'}>
+                                                            {t.result}
+                                                        </td>
                                                     </tr>
                                                 ))}
                                             </tbody>
@@ -553,9 +612,18 @@ const SuperBotsPage = observer(() => {
                                     ) : (
                                         <div className='dpa-premium__journal-list'>
                                             {session.trades.map(t => (
-                                                <div key={t.id} className={`dpa-premium__journal-entry ${t.result === 'WIN' ? 'win' : 'loss'}`}>
+                                                <div
+                                                    key={t.id}
+                                                    className={`dpa-premium__journal-entry ${t.result === 'WIN' ? 'win' : 'loss'}`}
+                                                >
                                                     <span className='dpa-premium__journal-time'>{t.time}</span>
-                                                    <span>{t.result === 'WIN' ? '✓' : '✗'} {t.type} — Stake: ${t.stake.toFixed(2)} → {t.result === 'WIN' ? `Won $${t.payout.toFixed(2)}` : `Lost $${t.stake.toFixed(2)}`}</span>
+                                                    <span>
+                                                        {t.result === 'WIN' ? '✓' : '✗'} {t.type} — Stake: $
+                                                        {t.stake.toFixed(2)} →{' '}
+                                                        {t.result === 'WIN'
+                                                            ? `Won $${t.payout.toFixed(2)}`
+                                                            : `Lost $${t.stake.toFixed(2)}`}
+                                                    </span>
                                                 </div>
                                             ))}
                                         </div>
@@ -578,11 +646,7 @@ const SuperBotsPage = observer(() => {
                                     </button>
                                 </>
                             ) : (
-                                <button
-                                    className='dpa-premium__run-btn'
-                                    onClick={handleRun}
-                                    disabled={!is_logged_in}
-                                >
+                                <button className='dpa-premium__run-btn' onClick={handleRun} disabled={!is_logged_in}>
                                     ▶ Run
                                 </button>
                             )}

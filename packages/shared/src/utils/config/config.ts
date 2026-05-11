@@ -24,9 +24,10 @@ export const domain_app_ids = {
     'staging-app.deriv.be': 31186,
     'binary.com': 1,
     'test-app.deriv.com': 51072,
-    // DerivProAcademy production domains
-    'derivproacademy.com': 36300,
-    'www.derivproacademy.com': 36300,
+    // DerivProFundedAcademy production domains
+    'derivprofundedacademy.com': 133858,
+    'www.derivprofundedacademy.com': 133858,
+    'app.derivprofundedacademy.com': 133858,
 };
 
 export const platform_app_ids = {
