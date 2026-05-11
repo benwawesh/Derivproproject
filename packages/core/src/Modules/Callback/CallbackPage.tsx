@@ -9,7 +9,17 @@ import { Callback } from '@deriv-com/auth-client';
 
 import AccessDeniedScreen from './AccessDeniedScreen';
 
+const DPA_VERIFIER_KEY = 'dpa_pkce_verifier';
+const DPA_REDIRECT_KEY = 'dpa_pkce_redirect';
+
+const clearDpaStorage = () => {
+    sessionStorage.removeItem(DPA_VERIFIER_KEY);
+    localStorage.removeItem(DPA_VERIFIER_KEY);
+    localStorage.removeItem(DPA_REDIRECT_KEY);
+};
+
 const saveTokensAndRedirect = (tokens: Record<string, string>, redirect_to: string) => {
+    clearDpaStorage();
     localStorage.setItem('config.tokens', JSON.stringify(tokens));
     if (tokens.token1) localStorage.setItem('config.account1', tokens.token1);
     if (tokens.acct1) {
@@ -29,13 +39,18 @@ const CallbackPage = () => {
     const search_params = new URLSearchParams(location.search);
     const code = search_params.get('code');
     const acct1 = search_params.get('acct1');
+    const state = search_params.get('state');
+    const url_error = search_params.get('error');
 
-    // Capture at mount time so re-renders don't change the mode
+    // Detect our DPA PKCE flow by the 'dpa_' prefix in the state param (reliable)
+    // or by the verifier still being in storage (backup)
+    const verifier_in_storage = sessionStorage.getItem(DPA_VERIFIER_KEY) || localStorage.getItem(DPA_VERIFIER_KEY);
+    const is_dpa_state = state?.startsWith('dpa_') ?? false;
+
+    // Capture mode at mount time — refs don't change on re-render
     const is_legacy_oauth = useRef(!!acct1);
-    const dpa_verifier_on_mount = useRef(sessionStorage.getItem('dpa_pkce_verifier'));
-    const is_dpa_pkce = useRef(!!(code && dpa_verifier_on_mount.current));
-    // auth.deriv.com returned an error (e.g. consent verifier issue) — trigger fallback
-    const is_dpa_pkce_error = useRef(!!(search_params.get('error') && dpa_verifier_on_mount.current));
+    const is_dpa_pkce = useRef(!!(code && (is_dpa_state || verifier_in_storage)));
+    const is_dpa_error = useRef(!!((url_error || !code) && (is_dpa_state || verifier_in_storage) && !acct1));
 
     const has_access_denied_error = location.search.includes('access_denied');
 
@@ -43,16 +58,14 @@ const CallbackPage = () => {
         featureFlag: 'duplicate-login',
     });
 
-    // auth.deriv.com OIDC failed — automatically fall back to old OAuth
+    // auth.deriv.com returned an error — auto fall back to old OAuth
     useEffect(() => {
-        if (!is_dpa_pkce_error.current) return;
-        sessionStorage.removeItem('dpa_pkce_verifier');
-        sessionStorage.removeItem('dpa_pkce_state');
-        sessionStorage.removeItem('dpa_pkce_redirect');
+        if (!is_dpa_error.current) return;
+        clearDpaStorage();
         window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=133890&l=EN&brand=deriv`;
     }, []);
 
-    // Option A fallback: old OAuth sent tokens directly in URL params
+    // Option A: old OAuth sent legacy tokens directly in URL params
     useEffect(() => {
         if (!is_legacy_oauth.current) return;
         const tokens: Record<string, string> = {};
@@ -64,19 +77,16 @@ const CallbackPage = () => {
         saveTokensAndRedirect(tokens, redirect_to);
     }, []);
 
-    // Option B: custom PKCE exchange with auth.deriv.com
+    // Option B: exchange auth code from auth.deriv.com for legacy session tokens
     useEffect(() => {
         if (!is_dpa_pkce.current) return;
 
-        const verifier = sessionStorage.getItem('dpa_pkce_verifier') ?? '';
-        const redirect_to = sessionStorage.getItem('dpa_pkce_redirect') || routes.traders_hub;
-        sessionStorage.removeItem('dpa_pkce_verifier');
-        sessionStorage.removeItem('dpa_pkce_state');
-        sessionStorage.removeItem('dpa_pkce_redirect');
+        const verifier = sessionStorage.getItem(DPA_VERIFIER_KEY) || localStorage.getItem(DPA_VERIFIER_KEY) || '';
+        const redirect_to = localStorage.getItem(DPA_REDIRECT_KEY) || routes.traders_hub;
 
         (async () => {
             try {
-                // Exchange auth code for Bearer token at auth.deriv.com
+                // Step 1: exchange authorization code for Bearer token at auth.deriv.com
                 const token_res = await fetch('https://auth.deriv.com/oauth2/token', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -88,34 +98,39 @@ const CallbackPage = () => {
                         redirect_uri: `${window.location.origin}/callback`,
                     }),
                 });
+
+                if (!token_res.ok) throw new Error(`Token exchange failed: ${token_res.status}`);
                 const { access_token } = await token_res.json();
                 if (!access_token) throw new Error('No access_token in response');
 
-                // Exchange Bearer token for legacy session tokens
+                // Step 2: exchange Bearer token for legacy session tokens
                 const legacy_res = await fetch('https://oauth.deriv.com/oauth2/legacy/tokens', {
                     method: 'POST',
                     headers: { Authorization: `Bearer ${access_token}` },
                 });
+
+                if (!legacy_res.ok) throw new Error(`Legacy token exchange failed: ${legacy_res.status}`);
                 const tokens = await legacy_res.json();
                 if (!tokens.acct1) throw new Error('No legacy tokens in response');
 
                 saveTokensAndRedirect(tokens, redirect_to);
             } catch (err) {
                 // eslint-disable-next-line no-console
-                console.error('DPA OIDC callback error:', err);
+                console.error('DPA PKCE token exchange error:', err);
+                clearDpaStorage();
                 setDpaError(true);
             }
         })();
     }, []);
 
-    // Show loading / error for our custom DPA flows
-    if (is_legacy_oauth.current || is_dpa_pkce.current || is_dpa_pkce_error.current) {
+    // Render for our custom DPA flows
+    if (is_dpa_error.current || is_legacy_oauth.current || is_dpa_pkce.current) {
         if (dpa_error) {
+            // PKCE exchange failed — offer fallback to old OAuth
             return (
                 <Button
                     onClick={() => {
-                        history.push('/');
-                        window.location.reload();
+                        window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=133890&l=EN&brand=deriv`;
                     }}
                     secondary
                     is_circular

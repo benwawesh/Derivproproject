@@ -42,13 +42,17 @@ const LoginButton = ({ className }) => {
                             .replace(/=/g, '');
                         const state_bytes = new Uint8Array(16);
                         crypto.getRandomValues(state_bytes);
-                        const state = btoa(String.fromCharCode(...state_bytes))
-                            .replace(/\+/g, '-')
-                            .replace(/\//g, '_')
-                            .replace(/=/g, '');
+                        const state =
+                            'dpa_' +
+                            btoa(String.fromCharCode(...state_bytes))
+                                .replace(/\+/g, '-')
+                                .replace(/\//g, '_')
+                                .replace(/=/g, '');
+                        // Store in both sessionStorage and localStorage so the verifier
+                        // survives even if sessionStorage is cleared between redirects
                         sessionStorage.setItem('dpa_pkce_verifier', verifier);
-                        sessionStorage.setItem('dpa_pkce_state', state);
-                        sessionStorage.setItem('dpa_pkce_redirect', window.location.href);
+                        localStorage.setItem('dpa_pkce_verifier', verifier);
+                        localStorage.setItem('dpa_pkce_redirect', window.location.href);
                         window.location.href = `https://auth.deriv.com/oauth2/auth?${new URLSearchParams({
                             response_type: 'code',
                             client_id: '32MDp7xsUb63kYmgE8GTu',
