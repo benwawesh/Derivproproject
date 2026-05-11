@@ -28,8 +28,19 @@ const LoginButton = ({ className }) => {
                     }
                 }
                 if (is_derivprofundedacademy) {
-                    sessionStorage.setItem('redirect_url', window.location.href);
-                    window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=133890&l=${getLanguage()}&brand=deriv`;
+                    try {
+                        localStorage.setItem('config.app_id', '133890');
+                        await requestOidcAuthentication({
+                            redirectCallbackUri: `${window.location.origin}/callback`,
+                            postLoginRedirectUri: window.location.href,
+                        });
+                    } catch (err) {
+                        // eslint-disable-next-line no-console
+                        console.error(err);
+                        localStorage.removeItem('config.app_id');
+                        sessionStorage.setItem('redirect_url', window.location.href);
+                        window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=133890&l=${getLanguage()}&brand=deriv`;
+                    }
                     return;
                 }
                 const is_tmb_enabled = await isTmbEnabled();
