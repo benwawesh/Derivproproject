@@ -175,8 +175,12 @@ const DPANavbar = observer(() => {
     /* ── Funded Guard — DB-driven, no localStorage ──────────────────── */
     const activateGuard = useCallback(async () => {
         if (!real_loginid) return;
-        // Respect the user's session-level mode choice (survives page refresh)
-        if (!window.__dpa_user_chose) {
+        // URL param is primary — restore before any early-exit check
+        const _params = new URLSearchParams(window.location.search);
+        if (_params.get('dpa_mode') === 'funded') {
+            (window as any).__dpa_user_chose = 'funded';
+            sessionStorage.setItem('dpa_chosen_mode', 'funded');
+        } else if (!(window as any).__dpa_user_chose) {
             const saved = sessionStorage.getItem('dpa_chosen_mode');
             if (saved) (window as any).__dpa_user_chose = saved;
         }

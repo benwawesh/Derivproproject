@@ -1,7 +1,7 @@
 // ── DPA Backend API (Django + PostgreSQL) ───────────────────────────────────
 const BASE = /derivprofundedacademy\.com/.test(window.location.hostname)
     ? 'https://api.derivprofundedacademy.com/api'
-    : 'http://localhost:8001/api';
+    : 'http://localhost:8011/api';
 
 async function get<T>(path: string, params?: Record<string, string>): Promise<T> {
     const url = new URL(`${BASE}${path}`);

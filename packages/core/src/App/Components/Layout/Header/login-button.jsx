@@ -28,46 +28,8 @@ const LoginButton = ({ className }) => {
                     }
                 }
                 if (is_derivprofundedacademy) {
-                    try {
-                        const verifier_bytes = new Uint8Array(32);
-                        crypto.getRandomValues(verifier_bytes);
-                        const verifier = btoa(String.fromCharCode(...verifier_bytes))
-                            .replace(/\+/g, '-')
-                            .replace(/\//g, '_')
-                            .replace(/=/g, '');
-                        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
-                        const challenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
-                            .replace(/\+/g, '-')
-                            .replace(/\//g, '_')
-                            .replace(/=/g, '');
-                        const state_bytes = new Uint8Array(16);
-                        crypto.getRandomValues(state_bytes);
-                        const state =
-                            'dpa_' +
-                            btoa(String.fromCharCode(...state_bytes))
-                                .replace(/\+/g, '-')
-                                .replace(/\//g, '_')
-                                .replace(/=/g, '');
-                        // Store in both sessionStorage and localStorage so the verifier
-                        // survives even if sessionStorage is cleared between redirects
-                        sessionStorage.setItem('dpa_pkce_verifier', verifier);
-                        localStorage.setItem('dpa_pkce_verifier', verifier);
-                        localStorage.setItem('dpa_pkce_redirect', window.location.href);
-                        window.location.href = `https://auth.deriv.com/oauth2/auth?${new URLSearchParams({
-                            response_type: 'code',
-                            client_id: '32MDp7xsUb63kYmgE8GTu',
-                            redirect_uri: `${window.location.origin}/callback`,
-                            scope: 'trade account_manage',
-                            code_challenge: challenge,
-                            code_challenge_method: 'S256',
-                            state,
-                        })}`;
-                    } catch (err) {
-                        // eslint-disable-next-line no-console
-                        console.error(err);
-                        sessionStorage.setItem('redirect_url', window.location.href);
-                        window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=133890&l=${getLanguage()}&brand=deriv`;
-                    }
+                    sessionStorage.setItem('redirect_url', window.location.href);
+                    window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=133890&l=${getLanguage()}&brand=deriv`;
                     return;
                 }
                 const is_tmb_enabled = await isTmbEnabled();

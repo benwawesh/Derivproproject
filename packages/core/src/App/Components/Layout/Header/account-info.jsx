@@ -48,10 +48,25 @@ const useMarketingDisplay = () => {
     return { is_marketing: mkt.is_active, marketing_balance: mkt.balance, marketing_currency: mkt.currency };
 };
 
+// Read funded mode synchronously so useState initializes correctly on first render
+const _readFundedMode = () => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('dpa_mode') === 'funded') {
+        window.__dpa_user_chose = 'funded';
+        sessionStorage.setItem('dpa_chosen_mode', 'funded');
+        return true;
+    }
+    if (sessionStorage.getItem('dpa_chosen_mode') === 'funded') {
+        window.__dpa_user_chose = 'funded';
+        return true;
+    }
+    return false;
+};
+
 const useFundedDisplay = () => {
     const { client } = useStore();
     const { loginid, accounts, is_virtual } = client;
-    const [is_funded, setIsFunded] = React.useState(false);
+    const [is_funded, setIsFunded] = React.useState(_readFundedMode);
     const [funded_balance, setFundedBalance] = React.useState(0);
 
     React.useEffect(() => {
@@ -82,7 +97,16 @@ const useFundedDisplay = () => {
         window.addEventListener('dpa_funded_balance_updated', onBalanceUpdate);
         window.addEventListener('dpa_funded_challenge_activated', onChallengeActivated);
 
-        // Never show funded mode when on demo account (unless user explicitly chose it)
+        // Re-read URL param on every effect run — survives Deriv's own account-switch
+        // re-renders that fire after the synchronous _readFundedMode() initializer ran
+        const _eff_params = new URLSearchParams(window.location.search);
+        if (_eff_params.get('dpa_mode') === 'funded') {
+            window.__dpa_user_chose = 'funded';
+            sessionStorage.setItem('dpa_chosen_mode', 'funded');
+            setIsFunded(true);
+        }
+
+        // Skip early return for demo when user explicitly chose funded
         if (is_virtual && window.__dpa_user_chose !== 'funded') {
             setIsFunded(false);
             return () => {
@@ -162,8 +186,12 @@ const AccountInfo = ({
 }) => {
     const currency_lower = currency?.toLowerCase();
     const { isDesktop } = useDevice();
-    const { is_funded, funded_balance } = useFundedDisplay();
-    const { is_marketing, marketing_balance, marketing_currency } = useMarketingDisplay();
+    const { is_funded: _is_funded_state, funded_balance } = useFundedDisplay();
+    const { is_marketing: _is_marketing_state, marketing_balance, marketing_currency } = useMarketingDisplay();
+    // URL param is authoritative — evaluated on every render, can't be overridden by async state updates
+    const is_funded = _is_funded_state || new URLSearchParams(window.location.search).get('dpa_mode') === 'funded';
+    // Funded mode takes priority over marketing — marketing guard resolves async and can race with funded restore
+    const is_marketing = _is_marketing_state && !is_funded;
 
     return (
         <div className='acc-info__wrapper'>

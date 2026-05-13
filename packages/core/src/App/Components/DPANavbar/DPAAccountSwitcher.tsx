@@ -1,21 +1,22 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { runInAction } from 'mobx';
 import { observer, useStore } from '@deriv/stores';
 import { formatMoney } from '@deriv/shared';
 import { useHistory } from 'react-router-dom';
 import { getParticipant, supabase } from '../../../Services/supabase';
 
 const LS_ACTIVE = 'dpa_funded_mode_active';
-const LS_ACTIVE_ACC = 'dpa_active_account';
 
 type FundedData = { loginid: string; current_balance: number; start_balance: number } | null;
 
 const DPAAccountSwitcher = observer(() => {
     const history = useHistory();
     const { client } = useStore() as any;
-    const { accounts, loginid: active_loginid, switchAccount, is_virtual, balance, currency } = client;
+    const { accounts, loginid: active_loginid, is_virtual, balance, currency } = client;
 
     const [open, setOpen] = useState(false);
-    const [is_funded, setIsFunded] = useState(() => localStorage.getItem(LS_ACTIVE_ACC) === 'funded');
+    // Read from the same sessionStorage key that account-switcher.jsx writes to
+    const [is_funded, setIsFunded] = useState(() => sessionStorage.getItem('dpa_chosen_mode') === 'funded');
     const [funded_data, setFundedData] = useState<FundedData>(null);
     const ref = useRef<HTMLDivElement>(null);
 
@@ -45,15 +46,19 @@ const DPAAccountSwitcher = observer(() => {
         };
     }, []);
 
-    // Keep is_funded in sync with localStorage whenever active_loginid changes
-    // (handles external account switches, page reloads, Deriv store updates)
+    // Stay in sync with account-switcher.jsx which dispatches these events
     useEffect(() => {
-        const active = localStorage.getItem(LS_ACTIVE_ACC) === 'funded';
-        setIsFunded(active);
-        if (active) {
-            localStorage.setItem(LS_ACTIVE, 'true');
-        }
-    }, [active_loginid]);
+        const onActivated = () => setIsFunded(true);
+        const onDeactivated = () => setIsFunded(false);
+        window.addEventListener('dpa_funded_activated', onActivated);
+        window.addEventListener('dpa_funded_deactivated', onDeactivated);
+        // Sync immediately in case the event already fired before this mounted
+        if (sessionStorage.getItem('dpa_chosen_mode') === 'funded') setIsFunded(true);
+        return () => {
+            window.removeEventListener('dpa_funded_activated', onActivated);
+            window.removeEventListener('dpa_funded_deactivated', onDeactivated);
+        };
+    }, []);
 
     // Load funded balance from Supabase (single source of truth across all browsers)
     useEffect(() => {
@@ -110,29 +115,32 @@ const DPAAccountSwitcher = observer(() => {
     }, []);
 
     const selectDeriv = async (loginid: string) => {
-        // Deactivate funded mode
-        localStorage.setItem(LS_ACTIVE_ACC, 'deriv');
+        setOpen(false);
+        sessionStorage.setItem('dpa_chosen_mode', 'deriv');
+        (window as any).__dpa_user_chose = 'deriv';
         localStorage.removeItem(LS_ACTIVE);
         setIsFunded(false);
-        setOpen(false);
-        // Tell FundedAccountStore to deactivate toggle in bot builder
         window.dispatchEvent(new CustomEvent('dpa_funded_deactivated'));
-        if (loginid !== active_loginid) await switchAccount(loginid);
+        if (loginid !== active_loginid) await (client as any).switchAccount(loginid);
     };
 
     const selectFunded = () => {
-        localStorage.setItem(LS_ACTIVE_ACC, 'funded');
+        setOpen(false);
+        sessionStorage.setItem('dpa_chosen_mode', 'funded');
+        (window as any).__dpa_user_chose = 'funded';
         localStorage.setItem(LS_ACTIVE, 'true');
         setIsFunded(true);
-        setOpen(false);
-        // Auto-activate the FUNDED MODE toggle in the bot builder
-        try {
-            const cached = localStorage.getItem('dpa_funded_challenge');
-            if (cached) {
-                const d = JSON.parse(cached);
-                window.dispatchEvent(new CustomEvent('dpa_funded_challenge_activated', { detail: d }));
-            }
-        } catch {}
+        runInAction(() => {
+            (client as any).is_switching = true;
+        });
+        setTimeout(
+            () =>
+                runInAction(() => {
+                    (client as any).is_switching = false;
+                }),
+            800
+        );
+        window.dispatchEvent(new CustomEvent('dpa_funded_activated'));
     };
 
     // Build account list from Deriv store

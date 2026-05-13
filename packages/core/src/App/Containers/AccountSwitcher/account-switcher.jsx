@@ -1,4 +1,5 @@
 import React from 'react';
+import { runInAction } from 'mobx';
 import classNames from 'classnames';
 import PropTypes from 'prop-types';
 import { withRouter } from 'react-router';
@@ -117,8 +118,12 @@ const AccountSwitcher = observer(({ history, is_mobile, is_visible }) => {
         const real_id =
             Object.keys(accounts || {}).find(id => !id.startsWith('VRT') && !id.startsWith('vrt')) || account_loginid;
 
-        // Restore session-level choice on mount/remount (sessionStorage survives refresh)
-        if (!window.__dpa_user_chose) {
+        // URL param is the primary source of truth — survives refresh on any page
+        const _url_params = new URLSearchParams(window.location.search);
+        if (_url_params.get('dpa_mode') === 'funded') {
+            window.__dpa_user_chose = 'funded';
+            sessionStorage.setItem('dpa_chosen_mode', 'funded');
+        } else if (!window.__dpa_user_chose) {
             const saved = sessionStorage.getItem('dpa_chosen_mode');
             if (saved) window.__dpa_user_chose = saved;
         }
@@ -147,9 +152,11 @@ const AccountSwitcher = observer(({ history, is_mobile, is_visible }) => {
                     }
                 } else {
                     setFundedData(null);
-                    setIsFundedSelected(false);
-                    if (!user_chose || user_chose === 'funded') {
-                        window.__dpa_user_chose = null;
+                    // Only deactivate funded mode if the user didn't explicitly choose it.
+                    // If user_chose === 'funded', keep the selection — they may have no participant
+                    // yet (API slow/offline) but we must not kick them out automatically.
+                    if (user_chose !== 'funded') {
+                        setIsFundedSelected(false);
                         window.dispatchEvent(new CustomEvent('dpa_funded_deactivated'));
                     }
                 }
@@ -201,16 +208,30 @@ const AccountSwitcher = observer(({ history, is_mobile, is_visible }) => {
     const selectFunded = () => {
         window.__dpa_user_chose = 'funded';
         sessionStorage.setItem('dpa_chosen_mode', 'funded');
+        const _fu = new URL(window.location.href);
+        _fu.searchParams.set('dpa_mode', 'funded');
+        window.history.replaceState({}, '', _fu.toString());
         setIsFundedSelected(true);
         setActiveTabIndex(2);
         closeAccountsDialog();
 
-        // Suppress marketing display when switching to funded
+        // Use the same is_switching flag that real↔demo switching uses so the Deriv
+        // header and other components show their natural loading state briefly.
+        runInAction(() => {
+            client.is_switching = true;
+        });
+        setTimeout(
+            () =>
+                runInAction(() => {
+                    client.is_switching = false;
+                }),
+            800
+        );
+
         window.__dpa_marketing_active = false;
         if (typeof window.__dpa_isMarketingActive === 'function') window.__dpa_isMarketingActive = () => false;
         window.dispatchEvent(new CustomEvent('dpa_marketing_deactivated'));
         window.dispatchEvent(new CustomEvent('dpa_funded_activated'));
-        // Directly fire challenge_activated so FundedAccountStore banner shows immediately
         if (funded_data) {
             window.dispatchEvent(
                 new CustomEvent('dpa_funded_challenge_activated', {
@@ -227,9 +248,11 @@ const AccountSwitcher = observer(({ history, is_mobile, is_visible }) => {
     const selectDeriv = loginid_to_switch => {
         window.__dpa_user_chose = 'deriv';
         sessionStorage.setItem('dpa_chosen_mode', 'deriv');
+        const _du = new URL(window.location.href);
+        _du.searchParams.delete('dpa_mode');
+        window.history.replaceState({}, '', _du.toString());
         setIsFundedSelected(false);
         window.dispatchEvent(new CustomEvent('dpa_funded_deactivated'));
-        // Reactivate marketing if an account is assigned (same real loginid, no loginid change fires)
         const mkt_acc = window.__dpa_marketing_account;
         if (mkt_acc) {
             window.__dpa_marketing_active = true;
@@ -602,34 +625,6 @@ const AccountSwitcher = observer(({ history, is_mobile, is_visible }) => {
                         className='acc-switcher__list-tabs'
                         onTabItemClick={index => {
                             setActiveTabIndex(index);
-                            const currently_funded = is_funded_selected || window.__dpa_user_chose === 'funded';
-                            if (index !== 2 && currently_funded) {
-                                const real_id =
-                                    Object.keys(accounts || {}).find(
-                                        id => !id.startsWith('VRT') && !id.startsWith('vrt')
-                                    ) || account_loginid;
-                                const target_id = index === 1 ? virtual_account_loginid : real_id;
-
-                                // Prevent funded guard from re-activating during the switch
-                                window.__dpa_user_chose = 'deriv';
-                                sessionStorage.setItem('dpa_chosen_mode', 'deriv');
-                                setIsFundedSelected(false);
-
-                                const deactivate = () => {
-                                    window.dispatchEvent(new CustomEvent('dpa_funded_deactivated'));
-                                    closeAccountsDialog();
-                                };
-
-                                if (target_id && target_id !== account_loginid) {
-                                    // Switch account FIRST so is_virtual is already correct
-                                    // when dpa_funded_deactivated fires — header jumps directly
-                                    // from "Funded" to "Demo"/"Real" with no flash
-                                    switchAccount(target_id).then(deactivate).catch(deactivate);
-                                } else {
-                                    // Already on target account — just deactivate
-                                    deactivate();
-                                }
-                            }
                         }}
                         top
                     >
