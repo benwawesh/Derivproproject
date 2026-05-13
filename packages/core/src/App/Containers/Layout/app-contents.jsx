@@ -42,7 +42,8 @@ const AppContents = observer(({ children }) => {
         '/reports',
         '/bot',
     ];
-    const is_dpa_scrollable_page = DPA_SCROLLABLE_PATHS.some(p => location.pathname.startsWith(p));
+    const is_dpa_scrollable_page =
+        location.pathname === '/' || DPA_SCROLLABLE_PATHS.some(p => location.pathname.startsWith(p));
 
     const { is_eu_country, is_logged_in, is_logging_in, should_redirect_user_to_login, setShouldRedirectToLogin } =
         client;

@@ -23,6 +23,17 @@ import { getInitialLanguage, initializeI18n, TranslationProvider } from '@deriv-
 
 import WS from 'Services/ws-methods';
 
+// On mobile, browsers clear sessionStorage when a tab is suspended/reloaded.
+// Restore session keys from localStorage so the user stays logged in.
+(function restoreSessionFromLocalStorage() {
+    const keys = ['active_loginid', 'active_wallet_loginid'];
+    keys.forEach(key => {
+        if (!sessionStorage.getItem(key) && localStorage.getItem(key)) {
+            sessionStorage.setItem(key, localStorage.getItem(key));
+        }
+    });
+})();
+
 import { CFD_TEXT } from '../Constants/cfd-text';
 import { FORM_ERROR_MESSAGES } from '../Constants/form-error-messages';
 
