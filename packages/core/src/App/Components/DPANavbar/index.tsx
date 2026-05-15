@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
+import { Dialog } from '@deriv/components';
 import { observer, useStore } from '@deriv/stores';
 import { routes } from '@deriv/shared';
 import { getSettings, trackUser, getParticipant, getRulesForParticipant, supabase } from 'Services/supabase';
@@ -60,74 +61,14 @@ const useCountdown = (endDate: Date) => {
 // ── Funded Guard Alert overlay ────────────────────────────────────────────────
 type GuardAlert = { message: string; type: AlertType; title?: string } | null;
 
-const GuardAlertOverlay = ({ alert, onClose }: { alert: GuardAlert; onClose: () => void }) => {
-    if (!alert) return null;
-    const is_blocked = alert.type === 'blocked';
-    const is_passed = alert.type === 'passed';
-    const default_title = is_blocked ? 'Trade Blocked' : is_passed ? 'Phase Passed!' : 'Warning';
-    const display_title = alert.title ?? default_title;
-    return (
-        <div
-            style={{
-                position: 'fixed',
-                inset: 0,
-                zIndex: 99999,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'rgba(0,0,0,0.7)',
-            }}
-        >
-            <div
-                style={{
-                    background: '#1a1f23',
-                    border: `2px solid ${is_blocked ? '#ff444f' : is_passed ? '#16a534' : '#e8a000'}`,
-                    borderRadius: 12,
-                    padding: '32px 36px',
-                    maxWidth: 420,
-                    textAlign: 'center',
-                    boxShadow: '0 16px 48px rgba(0,0,0,0.6)',
-                }}
-            >
-                <div style={{ fontSize: 40, marginBottom: 12 }}>{is_blocked ? '🚫' : is_passed ? '🎉' : '⚠️'}</div>
-                <h3
-                    style={{
-                        color: is_blocked ? '#ff444f' : is_passed ? '#16a534' : '#e8a000',
-                        fontSize: 18,
-                        marginBottom: 12,
-                        fontWeight: 700,
-                    }}
-                >
-                    {display_title}
-                </h3>
-                <p style={{ color: '#ccc', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>{alert.message}</p>
-                <button
-                    onClick={onClose}
-                    style={{
-                        background: is_blocked ? '#ff444f' : is_passed ? '#16a534' : '#e8a000',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: 6,
-                        padding: '10px 28px',
-                        fontWeight: 700,
-                        fontSize: 14,
-                        cursor: 'pointer',
-                    }}
-                >
-                    OK
-                </button>
-            </div>
-        </div>
-    );
-};
-
 // ── Navbar ────────────────────────────────────────────────────────────────────
 const DEFAULT_ANNOUNCEMENT =
     'Monthly competition now LIVE · Top 10 traders win funded accounts up to $10,000 · Join for FREE · No deposit required · Bot trading allowed';
 
 const DPANavbar = observer(() => {
-    const { client } = useStore();
-    const { is_logged_in, loginid, accounts, is_virtual, email, currency, residence, account_settings } = client as any;
+    const { client, ui } = useStore();
+    const { disableApp, enableApp } = ui;
+    const { is_logged_in, loginid, accounts, email, currency, residence, account_settings } = client as any;
 
     // Always use real account ID for funded challenge — challenge tracks real account
     const real_loginid: string = React.useMemo(
@@ -319,9 +260,29 @@ const DPANavbar = observer(() => {
     };
     const onMouseUp = () => setIsDragging(false);
 
+    const alert_title = guard_alert
+        ? (guard_alert.title ??
+          (guard_alert.type === 'blocked'
+              ? 'Trade Blocked'
+              : guard_alert.type === 'passed'
+                ? 'Phase Passed!'
+                : 'Warning'))
+        : '';
+
     return (
         <>
-            <GuardAlertOverlay alert={guard_alert} onClose={() => setGuardAlert(null)} />
+            <Dialog
+                title={alert_title}
+                confirm_button_text='OK'
+                onConfirm={() => setGuardAlert(null)}
+                is_closed_on_confirm
+                is_visible={!!guard_alert}
+                disableApp={disableApp}
+                enableApp={enableApp}
+                has_close_icon
+            >
+                {guard_alert?.message}
+            </Dialog>
             <nav className='dpa-navbar'>
                 {/* ── Announcement Bar ───────────────────────────── */}
                 <div className='dpa-navbar__announcement'>

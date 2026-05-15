@@ -32,7 +32,7 @@
     }
 }
 
-/* ── Native bot tab bar (/bot) — scrollable, clears the Run button ── */
+/* ── Native bot tab bar (/bot) — scrollable, matches custom tab bar behaviour ── */
 .dc-tabs__list--header--main__tabs {
     overflow-x: auto;
     overflow-y: hidden;
@@ -43,10 +43,26 @@
         display: none;
     }
 
-    /* Add right padding so last tabs scroll past the Run button (~300px wide) */
     .dc-themed-scrollbars-wrapper {
-        padding-right: 320px !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        padding-right: 0 !important;
     }
+}
+
+/* Force the bot tab <ul> to be as wide as all its children (native + injected) */
+.dc-tabs__list--main__tabs {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    min-width: max-content !important;
+}
+
+/* Trailing spacer so the last injected tab scrolls clear of the Run button */
+.dc-tabs__list--main__tabs:after {
+    content: '';
+    display: block;
+    flex: 0 0 50vw;
+    min-width: 50vw;
 }
 
 /* ── Tab bar — mobile responsive ────────────────────────────────────────────── */

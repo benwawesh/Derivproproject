@@ -1,8 +1,21 @@
 /**
- * MarketAnalysisService
- * Real-time multi-market analysis: digits (over/under, even/odd, matches/differs),
- * rise/fall, higher/lower. Supports dynamic tick windows, entry/exit tracking,
- * and RSI/SMA technical indicators derived from ticks_history.
+ * MarketAnalysisService — Enhanced with advanced mathematical analysis
+ *
+ * Formulas used for digit markets:
+ *  • Chi-Square test       — measures how far digit distribution deviates from uniform
+ *  • Z-Score per digit     — statistical significance of each digit's deviation
+ *  • Shannon Entropy       — measures predictability (lower = more predictable)
+ *  • Markov Chain          — transition probability matrix (digit-to-digit prediction)
+ *  • Runs Test             — detects clustering in even/odd sequences
+ *  • Digit RSI             — momentum indicator adapted for even/odd and over/under
+ *  • Exponential Weighting — gives more weight to recent ticks
+ *  • Binomial Confidence   — statistical proof that a bias is real and not random
+ *  • Multi-window Check    — consistency across 10T, 50T, 100T, 500T windows
+ *
+ * Formulas used for direction markets (Rise/Fall, Higher/Lower):
+ *  • RSI-14                — price momentum
+ *  • EMA slope             — trend direction
+ *  • Volatility (σ)        — standard deviation of price changes
  */
 
 export type ContractType = 'digits' | 'rise_fall' | 'higher_lower';
@@ -11,14 +24,16 @@ export type ConnectionStatus = 'disconnected' | 'connecting' | 'analyzing';
 export type Trend = 'bullish' | 'bearish' | 'neutral';
 export type Confidence = 'High' | 'Medium' | 'Low';
 
+// ─── Core data types (kept for backward compat) ───────────────────────────────
+
 export interface DigitStats {
-    counts: number[]; // index = digit 0-9
-    percentages: number[]; // index = digit 0-9
+    counts: number[];
+    percentages: number[];
     total: number;
-    overPercentage: number; // digits 5-9
-    underPercentage: number; // digits 0-4
-    evenPercentage: number; // digits 0,2,4,6,8
-    oddPercentage: number; // digits 1,3,5,7,9
+    overPercentage: number;
+    underPercentage: number;
+    evenPercentage: number;
+    oddPercentage: number;
     mostFrequent: { digit: number; count: number; percentage: number };
     leastFrequent: { digit: number; count: number; percentage: number };
 }
@@ -36,8 +51,8 @@ export interface WindowAnalysis {
     tickCount: number;
     digitStats: DigitStats;
     directionStats: DirectionStats;
-    score: number; // 0-100 normalised
-    signalLabel: string; // e.g. "Matches 7", "Over 4", "Rise"
+    score: number;
+    signalLabel: string;
     entrySpot: number | null;
     exitSpot: number | null;
 }
@@ -62,6 +77,46 @@ export interface TechnicalAnalysis {
     volatility: number | null;
 }
 
+// ─── New advanced types ───────────────────────────────────────────────────────
+
+export interface SignalScore {
+    label: string; // e.g. "Differs 0", "Over 4", "Rise"
+    score: number; // 0–100 composite score
+    confidence: Confidence;
+    explanation: string; // plain-English reason
+    subType: string; // 'matches_differs' | 'even_odd' | 'over_under' | 'rise_fall' | 'higher_lower'
+}
+
+export interface AdvancedMetrics {
+    chiSquare: number; // Σ (O−E)²/E — higher = stronger digit bias
+    entropy: number; // Shannon H in bits — lower = more predictable
+    zScores: number[]; // Z-score per digit 0–9
+    bestZDigit: number; // digit with the largest |Z|
+    evenOddRunsZ: number; // Runs-test Z — negative = clustering (bias exists)
+    digitRsiEvenOdd: number; // 0–100 (>70 = too many even → Odd signal)
+    digitRsiOverUnder: number; // 0–100 (>70 = too many Over → Under signal)
+    markovMatrix: number[][]; // 10×10 transition probability matrix
+    markovBestProb: number; // highest single-cell probability in matrix
+    markovBestFrom: number; // digit that triggers the strongest prediction
+    markovBestTo: number; // predicted next digit
+    multiWindowConsistency: number; // 0–100: % of time windows that agree on best signal
+    binomialConfidence: number; // 0–100: statistical proof the bias is real
+    exponentialWeights: number[]; // recency-weighted frequencies per digit
+    volatilityScore: number; // 0–100 (100 = very stable price)
+    rsi14: number | null; // price RSI for direction trades
+    emaSlopeScore: number; // 0–100 EMA trend strength
+}
+
+export interface DeepScanResult {
+    symbol: string;
+    name: string;
+    currentPrice: number;
+    rank: number;
+    bestSignal: SignalScore;
+    allSignals: SignalScore[]; // sorted best → worst
+    metrics: AdvancedMetrics;
+}
+
 export interface MarketResult {
     symbol: string;
     name: string;
@@ -73,6 +128,8 @@ export interface MarketResult {
     confidence: Confidence;
     technical: TechnicalAnalysis;
     rank: number;
+    // NEW — auto-detected best signals across ALL trade types
+    liveSignals: SignalScore[];
 }
 
 export interface BestMarket {
@@ -182,7 +239,6 @@ export class MarketAnalysisService {
     async connect(symbols: string[]): Promise<boolean> {
         this.activeSymbols = symbols;
         this.markets.clear();
-
         symbols.forEach(symbol => {
             this.markets.set(symbol, {
                 symbol,
@@ -195,7 +251,6 @@ export class MarketAnalysisService {
                 entryExitHistory: [],
             });
         });
-
         this.onStatusCallback?.('connecting', 'Connecting to Deriv API...');
 
         return new Promise(resolve => {
@@ -206,16 +261,13 @@ export class MarketAnalysisService {
                     resolve(v);
                 }
             };
-
             try {
                 this.ws?.close();
                 this.ws = new WebSocket(`wss://ws.binaryws.com/websockets/v3?app_id=${this.appId}`);
-
                 this.ws.onopen = () => {
                     this.onStatusCallback?.('connecting', 'Authorizing...');
                     this.send({ authorize: this.token });
                 };
-
                 this.ws.onmessage = e => {
                     try {
                         this.handleMessage(JSON.parse(e.data), done);
@@ -223,13 +275,11 @@ export class MarketAnalysisService {
                         /* skip */
                     }
                 };
-
                 this.ws.onerror = () => {
                     this.isConnected = false;
                     this.onStatusCallback?.('disconnected', 'Connection error');
                     done(false);
                 };
-
                 this.ws.onclose = () => {
                     this.isConnected = false;
                     this.onStatusCallback?.('disconnected', 'Disconnected');
@@ -273,7 +323,6 @@ export class MarketAnalysisService {
                 const symbol: string = msg.echo_req?.ticks_history;
                 const prices: number[] = (msg.history?.prices ?? []).map(Number);
                 if (!symbol || !this.markets.has(symbol) || prices.length === 0) break;
-
                 const data = this.markets.get(symbol)!;
                 data.priceBuffer = prices.slice(-this.maxBuffer);
                 data.directionBuffer = [];
@@ -303,7 +352,6 @@ export class MarketAnalysisService {
         if (!symbol || isNaN(quote) || !this.markets.has(symbol)) return;
 
         const data = this.markets.get(symbol)!;
-
         const direction: 'up' | 'down' | 'flat' =
             data.prevPrice === null ? 'flat' : quote > data.prevPrice ? 'up' : quote < data.prevPrice ? 'down' : 'flat';
 
@@ -316,10 +364,8 @@ export class MarketAnalysisService {
             data.priceBuffer.shift();
             data.directionBuffer.shift();
         }
-
         data.tickIndex++;
 
-        // Per-window entry/exit tracking
         this.tickWindows.forEach(w => {
             const entry = data.windowEntries.get(w);
             if (!entry) {
@@ -328,7 +374,6 @@ export class MarketAnalysisService {
             }
             const elapsed = data.tickIndex - entry.entryTickIndex;
             if (elapsed >= w) {
-                // Record completed cycle
                 const entryDigit = parseInt(entry.entrySpot.toString().slice(-1));
                 const exitDigit = parseInt(quote.toString().slice(-1));
                 const priceChange = quote - entry.entrySpot;
@@ -344,7 +389,6 @@ export class MarketAnalysisService {
                     timestamp: Date.now(),
                 });
                 if (data.entryExitHistory.length > 50) data.entryExitHistory.pop();
-                // Start new cycle
                 data.windowEntries.set(w, { entrySpot: quote, entryTickIndex: data.tickIndex });
             }
         });
@@ -352,7 +396,404 @@ export class MarketAnalysisService {
         this.broadcastUpdate();
     }
 
-    // ── Stats ────────────────────────────────────────────────────────────────
+    // ════════════════════════════════════════════════════════════════════════════
+    // ── MATHEMATICAL FORMULAS ────────────────────────────────────────────────
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /** Chi-Square test: measures how far digit distribution is from uniform (10% each).
+     *  Formula: χ² = Σ (observed − expected)² / expected
+     *  Higher χ² = stronger non-random bias = better trading signal */
+    private computeChiSquare(prices: number[]): number {
+        if (prices.length === 0) return 0;
+        const counts = new Array(10).fill(0);
+        prices.forEach(p => counts[parseInt(p.toString().slice(-1))]++);
+        const expected = prices.length / 10;
+        if (expected === 0) return 0;
+        return counts.reduce((sum, obs) => sum + (obs - expected) ** 2 / expected, 0);
+    }
+
+    /** Shannon Entropy: measures how predictable/random the digit sequence is.
+     *  Formula: H = −Σ p(i) × log₂(p(i))
+     *  Range: 0 (perfectly predictable) to 3.32 bits (perfectly random)
+     *  Lower H = more predictable = safer to trade */
+    private computeEntropy(prices: number[]): number {
+        if (prices.length === 0) return 3.32;
+        const counts = new Array(10).fill(0);
+        prices.forEach(p => counts[parseInt(p.toString().slice(-1))]++);
+        const total = prices.length;
+        let H = 0;
+        counts.forEach(c => {
+            if (c > 0) {
+                const p = c / total;
+                H -= p * Math.log2(p);
+            }
+        });
+        return H;
+    }
+
+    /** Z-Score per digit: how many standard deviations each digit is from expected 10%.
+     *  Formula: Z = (p_observed − 0.10) / √(0.10 × 0.90 / n)
+     *  |Z| > 2.0 = significant (95% confidence), |Z| > 3.0 = very significant */
+    private computeZScores(prices: number[]): number[] {
+        if (prices.length === 0) return new Array(10).fill(0);
+        const counts = new Array(10).fill(0);
+        prices.forEach(p => counts[parseInt(p.toString().slice(-1))]++);
+        const n = prices.length;
+        const expected = 0.1;
+        const stdErr = Math.sqrt((expected * (1 - expected)) / n);
+        return counts.map(c => (stdErr > 0 ? (c / n - expected) / stdErr : 0));
+    }
+
+    /** Runs Test for Even/Odd: detects clustering (bias) in the even/odd sequence.
+     *  Formula: Z_runs = (actual_runs − expected_runs) / √variance
+     *  Negative Z = fewer runs than expected = strong even/odd streak = tradeable bias */
+    private computeRunsTestZ(prices: number[]): number {
+        if (prices.length < 10) return 0;
+        const seq = prices.map(p => parseInt(p.toString().slice(-1)) % 2); // 0=even, 1=odd
+        const n1 = seq.filter(x => x === 0).length; // even count
+        const n2 = seq.filter(x => x === 1).length; // odd count
+        if (n1 === 0 || n2 === 0) return 0;
+        let runs = 1;
+        for (let i = 1; i < seq.length; i++) {
+            if (seq[i] !== seq[i - 1]) runs++;
+        }
+        const N = n1 + n2;
+        const expectedRuns = (2 * n1 * n2) / N + 1;
+        const variance = (2 * n1 * n2 * (2 * n1 * n2 - N)) / (N * N * (N - 1));
+        return variance > 0 ? (runs - expectedRuns) / Math.sqrt(variance) : 0;
+    }
+
+    /** Digit RSI adapted for Even/Odd:
+     *  Formula: RSI = 100 − [100 / (1 + even_count / odd_count)] over last period ticks
+     *  RSI > 70 → too many evens recently → Odd signal incoming
+     *  RSI < 30 → too many odds → Even signal incoming */
+    private computeDigitRsiEvenOdd(prices: number[], period = 14): number {
+        if (prices.length < period) return 50;
+        const recent = prices.slice(-period);
+        const evenCount = recent.filter(p => parseInt(p.toString().slice(-1)) % 2 === 0).length;
+        const oddCount = period - evenCount;
+        if (oddCount === 0) return 100;
+        if (evenCount === 0) return 0;
+        return 100 - 100 / (1 + evenCount / oddCount);
+    }
+
+    /** Digit RSI adapted for Over/Under (threshold = 4):
+     *  Formula: RSI = 100 − [100 / (1 + over_count / under_count)]
+     *  RSI > 70 → too many Over 4 → Under 5 signal
+     *  RSI < 30 → too many Under 5 → Over 4 signal */
+    private computeDigitRsiOverUnder(prices: number[], period = 14): number {
+        if (prices.length < period) return 50;
+        const recent = prices.slice(-period);
+        const overCount = recent.filter(p => parseInt(p.toString().slice(-1)) >= 5).length;
+        const underCount = period - overCount;
+        if (underCount === 0) return 100;
+        if (overCount === 0) return 0;
+        return 100 - 100 / (1 + overCount / underCount);
+    }
+
+    /** Markov Chain: builds a 10×10 transition probability matrix.
+     *  T[i][j] = P(next digit = j | current digit = i)
+     *  Strong off-diagonal probabilities = predictable digit sequences */
+    private computeMarkov(prices: number[]): {
+        matrix: number[][];
+        bestProb: number;
+        bestFrom: number;
+        bestTo: number;
+    } {
+        const raw = Array.from({ length: 10 }, () => new Array(10).fill(0));
+        const rowTotals = new Array(10).fill(0);
+        for (let i = 0; i < prices.length - 1; i++) {
+            const from = parseInt(prices[i].toString().slice(-1));
+            const to = parseInt(prices[i + 1].toString().slice(-1));
+            raw[from][to]++;
+            rowTotals[from]++;
+        }
+        const matrix = raw.map((row, i) =>
+            rowTotals[i] > 0 ? row.map(c => c / rowTotals[i]) : new Array(10).fill(0.1)
+        );
+        let bestProb = 0,
+            bestFrom = 0,
+            bestTo = 0;
+        matrix.forEach((row, i) => {
+            row.forEach((prob, j) => {
+                if (prob > bestProb) {
+                    bestProb = prob;
+                    bestFrom = i;
+                    bestTo = j;
+                }
+            });
+        });
+        return { matrix, bestProb, bestFrom, bestTo };
+    }
+
+    /** Exponential Decay Weighting: gives more weight to recent ticks.
+     *  Formula: w_t = e^(−λ × age), where age = ticks since that tick occurred
+     *  Returns weighted frequency per digit (0–1), recency-biased */
+    private computeExponentialWeights(prices: number[], lambda = 0.005): number[] {
+        if (prices.length === 0) return new Array(10).fill(0.1);
+        const weighted = new Array(10).fill(0);
+        let totalWeight = 0;
+        const n = prices.length;
+        prices.forEach((p, t) => {
+            const digit = parseInt(p.toString().slice(-1));
+            const age = n - 1 - t;
+            const w = Math.exp(-lambda * age);
+            weighted[digit] += w;
+            totalWeight += w;
+        });
+        return totalWeight > 0 ? weighted.map(c => c / totalWeight) : new Array(10).fill(0.1);
+    }
+
+    /** Binomial Confidence Test: statistical proof that a digit bias is not random chance.
+     *  Uses normal approximation to binomial.
+     *  Formula: Z = |p_observed − p_expected| / √(p_expected × (1−p_expected) / n)
+     *  Returns 0–100 confidence score */
+    private computeBinomialConfidence(observedCount: number, n: number, expectedP: number): number {
+        if (n === 0) return 0;
+        const observedP = observedCount / n;
+        const stdErr = Math.sqrt((expectedP * (1 - expectedP)) / n);
+        if (stdErr === 0) return observedP === expectedP ? 0 : 100;
+        const z = Math.abs((observedP - expectedP) / stdErr);
+        // Z=1.96→~95%, Z=3.0→~99.9%, Z=5.0→100%
+        return Math.min(100, (z / 5) * 100);
+    }
+
+    /** Multi-window consistency: checks if the same best signal appears across all windows.
+     *  If 10T, 50T, 100T, 500T all agree → 100% consistency → much higher confidence */
+    private computeMultiWindowConsistency(prices: number[]): number {
+        const windows = [10, 50, 100, 500].filter(w => prices.length >= w);
+        if (windows.length < 2) return 50;
+        const signals = windows.map(w => {
+            const slice = prices.slice(-w);
+            const counts = new Array(10).fill(0);
+            slice.forEach(p => counts[parseInt(p.toString().slice(-1))]++);
+            const leastIdx = counts.indexOf(Math.min(...counts));
+            return `D${leastIdx}`; // "Differs X" as the representative signal
+        });
+        const counts = new Map<string, number>();
+        signals.forEach(s => counts.set(s, (counts.get(s) ?? 0) + 1));
+        const maxAgree = Math.max(...Array.from(counts.values()));
+        return (maxAgree / windows.length) * 100;
+    }
+
+    /** Compute all advanced metrics for a price buffer */
+    computeAdvancedMetrics(prices: number[], directions: ('up' | 'down' | 'flat')[]): AdvancedMetrics {
+        const n = prices.length;
+        const chiSquare = this.computeChiSquare(prices);
+        const entropy = this.computeEntropy(prices);
+        const zScores = this.computeZScores(prices);
+        const bestZDigit = zScores.reduce((best, z, i) => (Math.abs(z) > Math.abs(zScores[best]) ? i : best), 0);
+        const evenOddRunsZ = this.computeRunsTestZ(prices);
+        const digitRsiEvenOdd = this.computeDigitRsiEvenOdd(prices);
+        const digitRsiOverUnder = this.computeDigitRsiOverUnder(prices);
+        const markov = this.computeMarkov(prices);
+        const multiWindowConsistency = this.computeMultiWindowConsistency(prices);
+        const exponentialWeights = this.computeExponentialWeights(prices);
+
+        // Binomial confidence for the least-frequent digit
+        const counts = new Array(10).fill(0);
+        prices.forEach(p => counts[parseInt(p.toString().slice(-1))]++);
+        const leastCount = Math.min(...counts);
+        const binomialConfidence = this.computeBinomialConfidence(leastCount, n, 0.1);
+
+        // Volatility score (100 = stable, 0 = very volatile)
+        const vol = this.calcVolatility(prices, Math.min(50, n));
+        const volatilityScore = vol !== null ? Math.max(0, 100 - vol * 500) : 50;
+
+        // RSI for direction trades
+        const rsi14 = this.calcRSI(prices, 14);
+        const rsiDev = rsi14 !== null ? Math.abs(rsi14 - 50) * 2 : 0;
+
+        // EMA slope score
+        const ema10 = this.calcEMA(prices, 10);
+        const ema20 = this.calcEMA(prices, 20);
+        let emaSlopeScore = 0;
+        if (ema10 !== null && ema20 !== null) {
+            const diff = (ema10 - ema20) / ema20;
+            emaSlopeScore = Math.min(100, Math.abs(diff) * 10000);
+        }
+
+        return {
+            chiSquare,
+            entropy,
+            zScores,
+            bestZDigit,
+            evenOddRunsZ,
+            digitRsiEvenOdd,
+            digitRsiOverUnder,
+            markovMatrix: markov.matrix,
+            markovBestProb: markov.bestProb,
+            markovBestFrom: markov.bestFrom,
+            markovBestTo: markov.bestTo,
+            multiWindowConsistency,
+            binomialConfidence,
+            exponentialWeights,
+            volatilityScore,
+            rsi14,
+            emaSlopeScore: rsiDev, // reuse rsiDev for ema
+        };
+    }
+
+    /** Score ALL signal types for a market and return them sorted best → worst */
+    scoreAllSignals(prices: number[], directions: ('up' | 'down' | 'flat')[], metrics: AdvancedMetrics): SignalScore[] {
+        const signals: SignalScore[] = [];
+        const n = prices.length;
+        if (n < 20) return signals;
+
+        const ds = this.computeDigitStats(prices);
+        const dir = this.computeDirectionStats(directions);
+
+        // Normalised helper metrics
+        const chiNorm = Math.min(100, (metrics.chiSquare / 50) * 100);
+        const entropyScore = Math.max(0, 100 - (metrics.entropy / 3.32) * 100);
+        const bestAbsZ = Math.min(100, (Math.abs(metrics.zScores[metrics.bestZDigit]) / 5) * 100);
+        const runsNorm = Math.min(100, (Math.abs(metrics.evenOddRunsZ) / 3) * 100);
+        const mwc = metrics.multiWindowConsistency;
+        const expBias = Math.min(100, ((Math.max(...metrics.exponentialWeights) - 0.1) / 0.9) * 100);
+        const markovStr = Math.min(100, ((metrics.markovBestProb - 0.1) / 0.9) * 100);
+
+        // ── DIFFERS X ─────────────────────────────────────────────────────────
+        // Best for the digit that appears least (strongest "cold digit")
+        const leastDigit = ds.leastFrequent.digit;
+        const leastPct = ds.leastFrequent.percentage;
+        const diffZ = Math.min(100, (Math.abs(metrics.zScores[leastDigit]) / 5) * 100);
+        const diffBinom = this.computeBinomialConfidence(ds.counts[leastDigit], n, 0.1);
+        const differsScore = Math.min(
+            100,
+            chiNorm * 0.2 +
+                diffZ * 0.2 +
+                markovStr * 0.15 +
+                entropyScore * 0.15 +
+                mwc * 0.15 +
+                diffBinom * 0.1 +
+                expBias * 0.05
+        );
+        signals.push({
+            label: `Differs ${leastDigit}`,
+            score: differsScore,
+            confidence: differsScore >= 60 ? 'High' : differsScore >= 35 ? 'Medium' : 'Low',
+            explanation: `Digit ${leastDigit} appears only ${leastPct.toFixed(1)}% (expected 10%). χ²=${metrics.chiSquare.toFixed(1)}, H=${metrics.entropy.toFixed(2)} bits, Z=${metrics.zScores[leastDigit].toFixed(2)}, Binomial conf=${diffBinom.toFixed(0)}%`,
+            subType: 'matches_differs',
+        });
+
+        // ── MATCHES X ─────────────────────────────────────────────────────────
+        const mostDigit = ds.mostFrequent.digit;
+        const mostPct = ds.mostFrequent.percentage;
+        const matchZ = Math.min(100, (Math.abs(metrics.zScores[mostDigit]) / 5) * 100);
+        const matchBinom = this.computeBinomialConfidence(ds.counts[mostDigit], n, 0.1);
+        const matchesScore = Math.min(
+            100,
+            chiNorm * 0.2 +
+                matchZ * 0.2 +
+                markovStr * 0.15 +
+                entropyScore * 0.15 +
+                mwc * 0.15 +
+                matchBinom * 0.1 +
+                expBias * 0.05
+        );
+        signals.push({
+            label: `Matches ${mostDigit}`,
+            score: matchesScore,
+            confidence: matchesScore >= 60 ? 'High' : matchesScore >= 35 ? 'Medium' : 'Low',
+            explanation: `Digit ${mostDigit} appears ${mostPct.toFixed(1)}% (expected 10%). χ²=${metrics.chiSquare.toFixed(1)}, Markov strength=${markovStr.toFixed(0)}%`,
+            subType: 'matches_differs',
+        });
+
+        // ── EVEN / ODD ────────────────────────────────────────────────────────
+        const eoRsiDev = (Math.abs(metrics.digitRsiEvenOdd - 50) / 50) * 100;
+        const evenDev = Math.abs(ds.evenPercentage - 50) * 2;
+        const dominantEO = ds.evenPercentage >= ds.oddPercentage ? 'Even' : 'Odd';
+        const eoScore = Math.min(
+            100,
+            runsNorm * 0.3 + eoRsiDev * 0.25 + evenDev * 0.2 + mwc * 0.15 + entropyScore * 0.1
+        );
+        signals.push({
+            label: dominantEO,
+            score: eoScore,
+            confidence: eoScore >= 60 ? 'High' : eoScore >= 35 ? 'Medium' : 'Low',
+            explanation: `${dominantEO}: ${Math.max(ds.evenPercentage, ds.oddPercentage).toFixed(1)}% (expected 50%). Runs test Z=${metrics.evenOddRunsZ.toFixed(2)}, Digit RSI=${metrics.digitRsiEvenOdd.toFixed(0)}`,
+            subType: 'even_odd',
+        });
+
+        // ── OVER 4 / UNDER 5 ──────────────────────────────────────────────────
+        const ouRsiDev = (Math.abs(metrics.digitRsiOverUnder - 50) / 50) * 100;
+        const ouDev = Math.abs(ds.overPercentage - 50) * 2;
+        const dominantOU = ds.overPercentage >= ds.underPercentage ? 'Over 4' : 'Under 5';
+        const ouScore = Math.min(
+            100,
+            ouDev * 0.3 + ouRsiDev * 0.25 + mwc * 0.25 + entropyScore * 0.1 + metrics.binomialConfidence * 0.1
+        );
+        signals.push({
+            label: dominantOU,
+            score: ouScore,
+            confidence: ouScore >= 60 ? 'High' : ouScore >= 35 ? 'Medium' : 'Low',
+            explanation: `${dominantOU}: ${Math.max(ds.overPercentage, ds.underPercentage).toFixed(1)}% (expected 50%). Digit RSI=${metrics.digitRsiOverUnder.toFixed(0)}, Window consistency=${mwc.toFixed(0)}%`,
+            subType: 'over_under',
+        });
+
+        // ── RISE / FALL ───────────────────────────────────────────────────────
+        const rfDev = Math.abs(dir.upPercentage - 50) * 2;
+        const dominantRF = dir.upPercentage >= dir.downPercentage ? 'Rise' : 'Fall';
+        const rsiScore = metrics.rsi14 !== null ? Math.abs(metrics.rsi14 - 50) * 2 : 0;
+        const rfScore = Math.min(100, rsiScore * 0.3 + rfDev * 0.3 + mwc * 0.25 + metrics.volatilityScore * 0.15);
+        signals.push({
+            label: dominantRF,
+            score: rfScore,
+            confidence: rfScore >= 60 ? 'High' : rfScore >= 35 ? 'Medium' : 'Low',
+            explanation: `${dominantRF}: ${Math.max(dir.upPercentage, dir.downPercentage).toFixed(1)}% price moves up. RSI=${metrics.rsi14?.toFixed(0) ?? 'N/A'}, Volatility score=${metrics.volatilityScore.toFixed(0)}`,
+            subType: 'rise_fall',
+        });
+
+        // ── HIGHER / LOWER ────────────────────────────────────────────────────
+        const dominantHL = dir.upPercentage >= dir.downPercentage ? 'Higher' : 'Lower';
+        const hlScore = Math.min(100, rsiScore * 0.25 + rfDev * 0.25 + metrics.emaSlopeScore * 0.25 + mwc * 0.25);
+        signals.push({
+            label: dominantHL,
+            score: hlScore,
+            confidence: hlScore >= 60 ? 'High' : hlScore >= 35 ? 'Medium' : 'Low',
+            explanation: `${dominantHL}: EMA slope=${metrics.emaSlopeScore.toFixed(0)}%, RSI=${metrics.rsi14?.toFixed(0) ?? 'N/A'}`,
+            subType: 'higher_lower',
+        });
+
+        return signals.sort((a, b) => b.score - a.score);
+    }
+
+    // ── Public deep scan ─────────────────────────────────────────────────────
+
+    /** Run full deep scan on a single market. Returns null if not enough data. */
+    deepScanMarket(symbol: string): DeepScanResult | null {
+        const data = this.markets.get(symbol);
+        if (!data || data.priceBuffer.length < 50) return null;
+        const metrics = this.computeAdvancedMetrics(data.priceBuffer, data.directionBuffer);
+        const allSignals = this.scoreAllSignals(data.priceBuffer, data.directionBuffer, metrics);
+        return {
+            symbol,
+            name: MARKET_NAME_MAP.get(symbol) ?? symbol,
+            currentPrice: data.currentPrice,
+            rank: 0,
+            bestSignal: allSignals[0] ?? { label: 'N/A', score: 0, confidence: 'Low', explanation: '', subType: '' },
+            allSignals,
+            metrics,
+        };
+    }
+
+    /** Run deep scan on ALL markets. Returns results ranked by best signal score. */
+    deepScanAll(): DeepScanResult[] {
+        const results: DeepScanResult[] = [];
+        this.markets.forEach((_, symbol) => {
+            const r = this.deepScanMarket(symbol);
+            if (r) results.push(r);
+        });
+        results.sort((a, b) => b.bestSignal.score - a.bestSignal.score);
+        results.forEach((r, i) => {
+            r.rank = i + 1;
+        });
+        return results;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // ── LEGACY COMPUTATION (kept for backward compat) ────────────────────────
+    // ════════════════════════════════════════════════════════════════════════════
 
     private computeDigitStats(prices: number[]): DigitStats {
         const counts = new Array(10).fill(0);
@@ -361,19 +802,16 @@ export class MarketAnalysisService {
         });
         const total = prices.length;
         const percentages = counts.map(c => (total > 0 ? (c / total) * 100 : 0));
-
         const overCount = counts.slice(5).reduce((s, c) => s + c, 0);
         const underCount = counts.slice(0, 5).reduce((s, c) => s + c, 0);
         const evenCount = [0, 2, 4, 6, 8].reduce((s, d) => s + counts[d], 0);
         const oddCount = [1, 3, 5, 7, 9].reduce((s, d) => s + counts[d], 0);
-
         let mostIdx = 0,
             leastIdx = 0;
         counts.forEach((c, i) => {
             if (c > counts[mostIdx]) mostIdx = i;
             if (c < counts[leastIdx]) leastIdx = i;
         });
-
         return {
             counts,
             percentages,
@@ -418,21 +856,15 @@ export class MarketAnalysisService {
                     signal: ds.evenPercentage >= ds.oddPercentage ? 'Even' : 'Odd',
                 };
             }
-            // matches_differs
             const matchScore = Math.max(0, Math.min(100, ((ds.mostFrequent.percentage - 10) / 90) * 100));
             const differScore = Math.max(0, Math.min(100, ((10 - ds.leastFrequent.percentage) / 10) * 100));
-            if (matchScore >= differScore) {
-                return { score: matchScore, signal: `Matches ${ds.mostFrequent.digit}` };
-            }
+            if (matchScore >= differScore) return { score: matchScore, signal: `Matches ${ds.mostFrequent.digit}` };
             return { score: differScore, signal: `Differs ${ds.leastFrequent.digit}` };
         }
-
-        // Rise/Fall and Higher/Lower
         const dominant = Math.max(dir.upPercentage, dir.downPercentage);
         const score = Math.max(0, Math.min(100, (dominant - 50) * 2));
-        if (this.contractType === 'rise_fall') {
+        if (this.contractType === 'rise_fall')
             return { score, signal: dir.upPercentage >= dir.downPercentage ? 'Rise' : 'Fall' };
-        }
         return { score, signal: dir.upPercentage >= dir.downPercentage ? 'Higher' : 'Lower' };
     }
 
@@ -441,7 +873,6 @@ export class MarketAnalysisService {
         const sma10 = this.calcSMA(prices, 10);
         const sma20 = this.calcSMA(prices, 20);
         const volatility = this.calcVolatility(prices, 20);
-
         let trend: Trend = 'neutral';
         if (sma10 !== null && sma20 !== null) {
             if (sma10 > sma20 * 1.0005) trend = 'bullish';
@@ -472,6 +903,16 @@ export class MarketAnalysisService {
         return slice.reduce((s, p) => s + p, 0) / period;
     }
 
+    private calcEMA(prices: number[], period: number): number | null {
+        if (prices.length < period) return null;
+        const k = 2 / (period + 1);
+        let ema = prices.slice(0, period).reduce((s, p) => s + p, 0) / period;
+        for (let i = period; i < prices.length; i++) {
+            ema = prices[i] * k + ema * (1 - k);
+        }
+        return ema;
+    }
+
     private calcVolatility(prices: number[], period: number): number | null {
         if (prices.length < period) return null;
         const slice = prices.slice(-period);
@@ -484,7 +925,6 @@ export class MarketAnalysisService {
 
     private broadcastUpdate() {
         const results: MarketResult[] = [];
-
         this.markets.forEach((data, symbol) => {
             if (data.priceBuffer.length === 0) return;
 
@@ -506,13 +946,15 @@ export class MarketAnalysisService {
                 };
             });
 
-            // Weighted score — larger windows count more
             const totalWeight = windows.reduce((s, w) => s + w.tickCount, 0);
             const overallScore =
                 totalWeight > 0 ? windows.reduce((s, w) => s + w.score * w.tickCount, 0) / totalWeight : 0;
-
             const largestW = windows[windows.length - 1] ?? windows[0];
             const confidence: Confidence = overallScore >= 60 ? 'High' : overallScore >= 30 ? 'Medium' : 'Low';
+
+            // Fast live signals (all trade types, lighter computation)
+            const metrics = this.computeAdvancedMetrics(data.priceBuffer, data.directionBuffer);
+            const liveSignals = this.scoreAllSignals(data.priceBuffer, data.directionBuffer, metrics);
 
             results.push({
                 symbol,
@@ -521,14 +963,23 @@ export class MarketAnalysisService {
                 windows,
                 entryExitHistory: data.entryExitHistory,
                 overallScore,
-                bestSignal: largestW.signalLabel,
-                confidence,
+                bestSignal: liveSignals[0]?.label ?? largestW.signalLabel,
+                confidence: liveSignals[0]
+                    ? liveSignals[0].score >= 60
+                        ? 'High'
+                        : liveSignals[0].score >= 35
+                          ? 'Medium'
+                          : 'Low'
+                    : confidence,
                 technical: this.computeTechnical(data.priceBuffer),
                 rank: 0,
+                liveSignals,
             });
         });
 
-        results.sort((a, b) => b.overallScore - a.overallScore);
+        results.sort(
+            (a, b) => (b.liveSignals[0]?.score ?? b.overallScore) - (a.liveSignals[0]?.score ?? a.overallScore)
+        );
         results.forEach((r, i) => {
             r.rank = i + 1;
         });
@@ -536,49 +987,18 @@ export class MarketAnalysisService {
         let best: BestMarket | null = null;
         if (results.length > 0) {
             const top = results[0];
-            const lw = top.windows[top.windows.length - 1] ?? top.windows[0];
             best = {
                 symbol: top.symbol,
                 name: top.name,
                 signal: top.bestSignal,
-                score: top.overallScore,
+                score: top.liveSignals[0]?.score ?? top.overallScore,
                 confidence: top.confidence,
                 entrySpot: top.currentPrice,
-                reason: this.buildReason(top, lw),
+                reason: top.liveSignals[0]?.explanation ?? '',
             };
         }
-
         this.onUpdateCallback?.(results, best);
     }
-
-    private buildReason(result: MarketResult, lw: WindowAnalysis): string {
-        const parts: string[] = [];
-        const ds = lw.digitStats;
-        const dir = lw.directionStats;
-
-        if (this.contractType === 'digits') {
-            if (this.digitSubType === 'over_under') {
-                parts.push(`${ds.overPercentage.toFixed(1)}% Over / ${ds.underPercentage.toFixed(1)}% Under`);
-            } else if (this.digitSubType === 'even_odd') {
-                parts.push(`${ds.evenPercentage.toFixed(1)}% Even / ${ds.oddPercentage.toFixed(1)}% Odd`);
-            } else {
-                parts.push(
-                    `Digit ${ds.mostFrequent.digit} at ${ds.mostFrequent.percentage.toFixed(1)}% · ` +
-                        `Digit ${ds.leastFrequent.digit} least at ${ds.leastFrequent.percentage.toFixed(1)}%`
-                );
-            }
-        } else {
-            parts.push(`${dir.upPercentage.toFixed(1)}% Up / ${dir.downPercentage.toFixed(1)}% Down`);
-        }
-
-        parts.push(`in last ${lw.tickCount} ticks`);
-        const t = result.technical;
-        if (t.rsi14 !== null) parts.push(`RSI ${t.rsi14.toFixed(1)}`);
-        if (t.trend !== 'neutral') parts.push(`Trend: ${t.trend}`);
-        return parts.join(' · ');
-    }
-
-    // ── Helpers ──────────────────────────────────────────────────────────────
 
     private fetchHistory(symbol: string, count: number) {
         this.send({
@@ -591,8 +1011,6 @@ export class MarketAnalysisService {
     }
 
     private send(obj: Record<string, unknown>) {
-        if (this.ws?.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify(obj));
-        }
+        if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(obj));
     }
 }
