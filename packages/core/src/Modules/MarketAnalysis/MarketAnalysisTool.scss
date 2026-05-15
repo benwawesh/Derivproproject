@@ -134,6 +134,39 @@
         margin-bottom: 20px;
     }
 
+    // ── Over/Under direction toggle ───────────────────────────────────────────
+    &__ou-control {
+        display: flex;
+        border: 1px solid #333;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    &__ou-btn {
+        padding: 8px 20px;
+        font-size: 13px;
+        font-weight: 700;
+        border: none;
+        background: #1a1a1a;
+        color: #555;
+        cursor: pointer;
+        transition: all 0.15s;
+
+        &:hover {
+            background: #252525;
+            color: #ccc;
+        }
+
+        &--active {
+            background: #9c6fff;
+            color: #fff;
+        }
+
+        & + & {
+            border-left: 1px solid #333;
+        }
+    }
+
     &__barrier-row {
         display: flex;
         align-items: center;

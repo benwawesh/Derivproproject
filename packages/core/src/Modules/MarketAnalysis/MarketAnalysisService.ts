@@ -202,9 +202,9 @@ export class MarketAnalysisService {
 
     // ── Public configuration ─────────────────────────────────────────────────
 
-    /** Set the Over/Under barrier digit. Valid range 0–8 (Over 8 is the minimum useful upper barrier). */
+    /** Set the Over/Under barrier digit (0–9). UI enforces Over max=8, Under min=1. */
     setBarrier(b: number) {
-        this.barrier = Math.max(0, Math.min(8, Math.round(b)));
+        this.barrier = Math.max(0, Math.min(9, Math.round(b)));
     }
 
     setContractType(type: ContractType, subType?: DigitSubType) {

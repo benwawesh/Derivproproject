@@ -21,8 +21,12 @@ const scoreColor = (score: number) => (score >= 65 ? '#00e676' : score >= 40 ? '
 
 const fmt = (n: number, d = 3) => n.toFixed(d);
 
-// ─── Shared: pick best signal for a market, optionally filtered by subType ────
-const pickBest = (r: MarketResult, filter: string) => {
+// ─── Shared: pick best signal, respecting direction for over_under ────────────
+const pickBest = (r: MarketResult, filter: string, ouDir: 'over' | 'under' = 'over') => {
+    if (filter === 'over_under') {
+        const prefix = ouDir === 'under' ? 'Under' : 'Over';
+        return r.liveSignals.find(s => s.subType === 'over_under' && s.label.startsWith(prefix)) ?? r.liveSignals[0];
+    }
     if (filter === 'all') return r.liveSignals[0];
     return r.liveSignals.find(s => s.subType === filter) ?? r.liveSignals[0];
 };
@@ -32,14 +36,16 @@ const RankingsSection = ({
     results,
     onSelectMarket,
     tradeTypeFilter,
+    ouDirection,
 }: {
     results: MarketResult[];
     onSelectMarket: (symbol: string) => void;
     tradeTypeFilter: string;
+    ouDirection: 'over' | 'under';
 }) => {
     const sorted = [...results].sort((a, b) => {
-        const aScore = pickBest(a, tradeTypeFilter)?.score ?? 0;
-        const bScore = pickBest(b, tradeTypeFilter)?.score ?? 0;
+        const aScore = pickBest(a, tradeTypeFilter, ouDirection)?.score ?? 0;
+        const bScore = pickBest(b, tradeTypeFilter, ouDirection)?.score ?? 0;
         return bScore - aScore;
     });
 
@@ -58,7 +64,7 @@ const RankingsSection = ({
         <div className='mat__rankings'>
             <div className='mat__rankings-grid'>
                 {sorted.map((r, idx) => {
-                    const best = pickBest(r, tradeTypeFilter);
+                    const best = pickBest(r, tradeTypeFilter, ouDirection);
                     const score = best?.score ?? 0;
                     return (
                         <div
@@ -145,6 +151,7 @@ const CirclesSection = ({
     tradeTypeFilter,
     onTradeTypeChange,
     barrier,
+    ouDirection,
 }: {
     results: MarketResult[];
     selectedSymbol: string;
@@ -152,6 +159,7 @@ const CirclesSection = ({
     tradeTypeFilter: string;
     onTradeTypeChange: (t: string) => void;
     barrier: number;
+    ouDirection: 'over' | 'under';
 }) => {
     const result = results.find(r => r.symbol === selectedSymbol) ?? results[0];
 
@@ -174,8 +182,13 @@ const CirclesSection = ({
     const currentDigit =
         result.currentPrice > 0 ? parseInt(result.currentPrice.toString().replace('.', '').slice(-1)) : -1;
 
+    const ouPrefix = ouDirection === 'under' ? 'Under' : 'Over';
     const filteredSignals =
-        tradeTypeFilter === 'all' ? result.liveSignals : result.liveSignals.filter(s => s.subType === tradeTypeFilter);
+        tradeTypeFilter === 'all'
+            ? result.liveSignals
+            : tradeTypeFilter === 'over_under'
+              ? result.liveSignals.filter(s => s.subType === 'over_under' && s.label.startsWith(ouPrefix))
+              : result.liveSignals.filter(s => s.subType === tradeTypeFilter);
 
     return (
         <div className='mat__circles-section'>
@@ -247,50 +260,53 @@ const CirclesSection = ({
                         </div>
 
                         {/* Stat boxes */}
-                        {dir && (
-                            <div className='mat__stat-boxes'>
-                                {[
-                                    {
-                                        label: 'EVEN',
-                                        pct: ds.evenPercentage,
-                                        dominant: ds.evenPercentage >= ds.oddPercentage,
-                                    },
-                                    {
-                                        label: 'ODD',
-                                        pct: ds.oddPercentage,
-                                        dominant: ds.oddPercentage > ds.evenPercentage,
-                                    },
-                                    {
-                                        label: 'RISE',
-                                        pct: dir.upPercentage,
-                                        dominant: dir.upPercentage >= dir.downPercentage,
-                                    },
-                                    {
-                                        label: 'FALL',
-                                        pct: dir.downPercentage,
-                                        dominant: dir.downPercentage > dir.upPercentage,
-                                    },
-                                    {
-                                        label: 'OVER 4',
-                                        pct: ds.overPercentage,
-                                        dominant: ds.overPercentage >= ds.underPercentage,
-                                    },
-                                    {
-                                        label: 'UNDER 5',
-                                        pct: ds.underPercentage,
-                                        dominant: ds.underPercentage > ds.overPercentage,
-                                    },
-                                ].map(({ label, pct, dominant }) => (
-                                    <div
-                                        key={label}
-                                        className={`mat__stat-box ${dominant ? 'mat__stat-box--green' : 'mat__stat-box--red'}`}
-                                    >
-                                        <span className='mat__stat-box__label'>{label}</span>
-                                        <span className='mat__stat-box__value'>{pct.toFixed(1)}%</span>
+                        {dir &&
+                            (() => {
+                                // Compute over/under from raw digit counts using the custom barrier
+                                const overCount = ds.counts.slice(barrier + 1).reduce((s, c) => s + c, 0);
+                                const underCount = ds.counts.slice(0, barrier).reduce((s, c) => s + c, 0);
+                                const overPct = ds.total > 0 ? (overCount / ds.total) * 100 : 0;
+                                const underPct = ds.total > 0 ? (underCount / ds.total) * 100 : 0;
+                                const ouLabel = ouDirection === 'under' ? `UNDER ${barrier}` : `OVER ${barrier}`;
+                                const ouPct = ouDirection === 'under' ? underPct : overPct;
+                                const ouExpected =
+                                    ouDirection === 'under' ? (barrier / 10) * 100 : ((9 - barrier) / 10) * 100;
+                                return (
+                                    <div className='mat__stat-boxes'>
+                                        {[
+                                            {
+                                                label: 'EVEN',
+                                                pct: ds.evenPercentage,
+                                                dominant: ds.evenPercentage >= ds.oddPercentage,
+                                            },
+                                            {
+                                                label: 'ODD',
+                                                pct: ds.oddPercentage,
+                                                dominant: ds.oddPercentage > ds.evenPercentage,
+                                            },
+                                            {
+                                                label: 'RISE',
+                                                pct: dir.upPercentage,
+                                                dominant: dir.upPercentage >= dir.downPercentage,
+                                            },
+                                            {
+                                                label: 'FALL',
+                                                pct: dir.downPercentage,
+                                                dominant: dir.downPercentage > dir.upPercentage,
+                                            },
+                                            { label: ouLabel, pct: ouPct, dominant: ouPct >= ouExpected },
+                                        ].map(({ label, pct, dominant }) => (
+                                            <div
+                                                key={label}
+                                                className={`mat__stat-box ${dominant ? 'mat__stat-box--green' : 'mat__stat-box--red'}`}
+                                            >
+                                                <span className='mat__stat-box__label'>{label}</span>
+                                                <span className='mat__stat-box__value'>{pct.toFixed(1)}%</span>
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
-                            </div>
-                        )}
+                                );
+                            })()}
                     </div>
 
                     {/* Signal cards */}
@@ -357,14 +373,16 @@ const GraphicalSection = ({
     results,
     onSelectMarket,
     tradeTypeFilter,
+    ouDirection,
 }: {
     results: MarketResult[];
     onSelectMarket: (symbol: string) => void;
     tradeTypeFilter: string;
+    ouDirection: 'over' | 'under';
 }) => {
     const sorted = [...results].sort((a, b) => {
-        const aScore = pickBest(a, tradeTypeFilter)?.score ?? 0;
-        const bScore = pickBest(b, tradeTypeFilter)?.score ?? 0;
+        const aScore = pickBest(a, tradeTypeFilter, ouDirection)?.score ?? 0;
+        const bScore = pickBest(b, tradeTypeFilter, ouDirection)?.score ?? 0;
         return bScore - aScore;
     });
 
@@ -393,7 +411,7 @@ const GraphicalSection = ({
             {/* Market strength bars */}
             <div className='mat__graphical__bars'>
                 {sorted.map((r, idx) => {
-                    const best = pickBest(r, tradeTypeFilter);
+                    const best = pickBest(r, tradeTypeFilter, ouDirection);
                     const score = best?.score ?? 0;
                     const color = best ? confidenceColor(best.confidence) : '#2a2a2a';
                     const barWidth = (score / maxScore) * 100;
@@ -687,6 +705,7 @@ export const MarketAnalysisTool = () => {
     const [sectionTab, setSectionTab] = useState<SectionTab>('rankings');
     const [selectedSymbol, setSelectedSymbol] = useState('R_50');
     const [barrier, setBarrier] = useState(4);
+    const [ouDirection, setOuDirection] = useState<'over' | 'under'>('over');
     const [tradeTypeFilter, setTradeTypeFilter] = useState('all');
 
     const serviceRef = useRef<MarketAnalysisService | null>(null);
@@ -791,16 +810,40 @@ export const MarketAnalysisTool = () => {
 
             {/* ── Global controls bar ── */}
             <div className='mat__global-controls'>
+                {/* Over/Under direction + digit */}
                 <div className='mat__ctrl-group'>
-                    <label className='mat__ctrl-label'>Over/Under Barrier</label>
+                    <label className='mat__ctrl-label'>Over / Under</label>
+                    <div className='mat__ou-control'>
+                        <button
+                            className={`mat__ou-btn ${ouDirection === 'over' ? 'mat__ou-btn--active' : ''}`}
+                            onClick={() => {
+                                setOuDirection('over');
+                                setBarrier(b => Math.min(b, 8)); // Over max = 8
+                            }}
+                        >
+                            Over
+                        </button>
+                        <button
+                            className={`mat__ou-btn ${ouDirection === 'under' ? 'mat__ou-btn--active' : ''}`}
+                            onClick={() => {
+                                setOuDirection('under');
+                                setBarrier(b => Math.max(b, 1)); // Under min = 1
+                            }}
+                        >
+                            Under
+                        </button>
+                    </div>
+                </div>
+                <div className='mat__ctrl-group'>
+                    <label className='mat__ctrl-label'>Digit</label>
                     <div className='mat__barrier-row'>
                         <span className='mat__barrier-preview'>
-                            Over {barrier} · Under {barrier}
+                            {ouDirection === 'over' ? 'Over' : 'Under'} {barrier}
                         </span>
                         <input
                             type='range'
-                            min={0}
-                            max={8}
+                            min={ouDirection === 'under' ? 1 : 0}
+                            max={ouDirection === 'over' ? 8 : 9}
                             step={1}
                             value={barrier}
                             onChange={e => setBarrier(Number(e.target.value))}
@@ -844,6 +887,7 @@ export const MarketAnalysisTool = () => {
                     results={results}
                     onSelectMarket={handleSelectMarket}
                     tradeTypeFilter={tradeTypeFilter}
+                    ouDirection={ouDirection}
                 />
             )}
             {sectionTab === 'circles' && (
@@ -854,6 +898,7 @@ export const MarketAnalysisTool = () => {
                     tradeTypeFilter={tradeTypeFilter}
                     onTradeTypeChange={setTradeTypeFilter}
                     barrier={barrier}
+                    ouDirection={ouDirection}
                 />
             )}
             {sectionTab === 'graphical' && (
@@ -861,6 +906,7 @@ export const MarketAnalysisTool = () => {
                     results={results}
                     onSelectMarket={handleSelectMarket}
                     tradeTypeFilter={tradeTypeFilter}
+                    ouDirection={ouDirection}
                 />
             )}
             {sectionTab === 'deepscan' && (
