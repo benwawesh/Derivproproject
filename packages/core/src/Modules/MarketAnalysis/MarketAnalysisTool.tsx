@@ -21,17 +21,25 @@ const scoreColor = (score: number) => (score >= 65 ? '#00e676' : score >= 40 ? '
 
 const fmt = (n: number, d = 3) => n.toFixed(d);
 
+// ─── Shared: pick best signal for a market, optionally filtered by subType ────
+const pickBest = (r: MarketResult, filter: string) => {
+    if (filter === 'all') return r.liveSignals[0];
+    return r.liveSignals.find(s => s.subType === filter) ?? r.liveSignals[0];
+};
+
 // ─── Market Rankings section ──────────────────────────────────────────────────
 const RankingsSection = ({
     results,
     onSelectMarket,
+    tradeTypeFilter,
 }: {
     results: MarketResult[];
     onSelectMarket: (symbol: string) => void;
+    tradeTypeFilter: string;
 }) => {
     const sorted = [...results].sort((a, b) => {
-        const aScore = a.liveSignals[0]?.score ?? 0;
-        const bScore = b.liveSignals[0]?.score ?? 0;
+        const aScore = pickBest(a, tradeTypeFilter)?.score ?? 0;
+        const bScore = pickBest(b, tradeTypeFilter)?.score ?? 0;
         return bScore - aScore;
     });
 
@@ -50,7 +58,7 @@ const RankingsSection = ({
         <div className='mat__rankings'>
             <div className='mat__rankings-grid'>
                 {sorted.map((r, idx) => {
-                    const best = r.liveSignals[0];
+                    const best = pickBest(r, tradeTypeFilter);
                     const score = best?.score ?? 0;
                     return (
                         <div
@@ -134,12 +142,17 @@ const CirclesSection = ({
     results,
     selectedSymbol,
     onSymbolChange,
+    tradeTypeFilter,
+    onTradeTypeChange,
+    barrier,
 }: {
     results: MarketResult[];
     selectedSymbol: string;
     onSymbolChange: (s: string) => void;
+    tradeTypeFilter: string;
+    onTradeTypeChange: (t: string) => void;
+    barrier: number;
 }) => {
-    const [tradeFilter, setTradeFilter] = useState('all');
     const result = results.find(r => r.symbol === selectedSymbol) ?? results[0];
 
     if (!result) {
@@ -162,7 +175,7 @@ const CirclesSection = ({
         result.currentPrice > 0 ? parseInt(result.currentPrice.toString().replace('.', '').slice(-1)) : -1;
 
     const filteredSignals =
-        tradeFilter === 'all' ? result.liveSignals : result.liveSignals.filter(s => s.subType === tradeFilter);
+        tradeTypeFilter === 'all' ? result.liveSignals : result.liveSignals.filter(s => s.subType === tradeTypeFilter);
 
     return (
         <div className='mat__circles-section'>
@@ -186,8 +199,8 @@ const CirclesSection = ({
                     <label className='mat__ctrl-label'>Trade Type</label>
                     <select
                         className='mat__market-select'
-                        value={tradeFilter}
-                        onChange={e => setTradeFilter(e.target.value)}
+                        value={tradeTypeFilter}
+                        onChange={e => onTradeTypeChange(e.target.value)}
                     >
                         {TRADE_TYPE_OPTS.map(o => (
                             <option key={o.value} value={o.value}>
@@ -283,9 +296,9 @@ const CirclesSection = ({
                     {/* Signal cards */}
                     <div className='mat__signal-cards'>
                         <div className='mat__signal-cards__title'>
-                            {tradeFilter === 'all'
+                            {tradeTypeFilter === 'all'
                                 ? 'All Signals'
-                                : TRADE_TYPE_OPTS.find(o => o.value === tradeFilter)?.label + ' Signals'}{' '}
+                                : TRADE_TYPE_OPTS.find(o => o.value === tradeTypeFilter)?.label + ' Signals'}{' '}
                             — ranked by strength
                         </div>
                         {filteredSignals.length === 0 ? (
@@ -343,13 +356,15 @@ const CirclesSection = ({
 const GraphicalSection = ({
     results,
     onSelectMarket,
+    tradeTypeFilter,
 }: {
     results: MarketResult[];
     onSelectMarket: (symbol: string) => void;
+    tradeTypeFilter: string;
 }) => {
     const sorted = [...results].sort((a, b) => {
-        const aScore = a.liveSignals[0]?.score ?? 0;
-        const bScore = b.liveSignals[0]?.score ?? 0;
+        const aScore = pickBest(a, tradeTypeFilter)?.score ?? 0;
+        const bScore = pickBest(b, tradeTypeFilter)?.score ?? 0;
         return bScore - aScore;
     });
 
@@ -378,7 +393,7 @@ const GraphicalSection = ({
             {/* Market strength bars */}
             <div className='mat__graphical__bars'>
                 {sorted.map((r, idx) => {
-                    const best = r.liveSignals[0];
+                    const best = pickBest(r, tradeTypeFilter);
                     const score = best?.score ?? 0;
                     const color = best ? confidenceColor(best.confidence) : '#2a2a2a';
                     const barWidth = (score / maxScore) * 100;
@@ -503,7 +518,15 @@ const METRIC_DEFS: { key: string; label: string; hint: string; format: (m: Advan
     },
 ];
 
-const DeepScanSection = ({ results, service }: { results: MarketResult[]; service: MarketAnalysisService | null }) => {
+const DeepScanSection = ({
+    results,
+    service,
+    barrier,
+}: {
+    results: MarketResult[];
+    service: MarketAnalysisService | null;
+    barrier: number;
+}) => {
     const [scanResults, setScanResults] = useState<DeepScanResult[] | null>(null);
     const [isScanning, setIsScanning] = useState(false);
     const hasData = results.some(r => r.liveSignals.length > 0);
@@ -528,9 +551,20 @@ const DeepScanSection = ({ results, service }: { results: MarketResult[]; servic
                     Applies all 9 advanced formulas simultaneously: <b>Chi-Square</b> deviation, <b>Shannon Entropy</b>,{' '}
                     <b>Z-Score</b> significance, <b>Markov Chain</b> transitions, <b>Runs Test</b> clustering,{' '}
                     <b>Digit RSI</b> (Even/Odd &amp; Over/Under), <b>Exponential Decay Weighting</b>,{' '}
-                    <b>Binomial Confidence</b>, and <b>Multi-Window Consistency</b>. Every market is then ranked by
-                    composite signal strength.
+                    <b>Binomial Confidence</b>, and <b>Multi-Window Consistency</b>. Markets are ranked across{' '}
+                    <b>Even/Odd, Over/Under, Rise/Fall, Higher/Lower</b> — Matches/Differs is excluded because it
+                    inflates scores by nature (9-in-10 base-rate advantage).
                 </p>
+                <div className='mat__deepscan__barrier-info'>
+                    Current Over/Under barrier:{' '}
+                    <b>
+                        Over {barrier} / Under {barrier}
+                    </b>
+                    <span className='mat__deepscan__barrier-hint'>
+                        {' '}
+                        — change via the barrier control in the controls bar above.
+                    </span>
+                </div>
                 <button
                     className={`mat__btn ${isScanning ? 'mat__btn--scanning' : 'mat__btn--scan'}`}
                     onClick={runScan}
@@ -652,6 +686,8 @@ export const MarketAnalysisTool = () => {
     const [results, setResults] = useState<MarketResult[]>([]);
     const [sectionTab, setSectionTab] = useState<SectionTab>('rankings');
     const [selectedSymbol, setSelectedSymbol] = useState('R_50');
+    const [barrier, setBarrier] = useState(4);
+    const [tradeTypeFilter, setTradeTypeFilter] = useState('all');
 
     const serviceRef = useRef<MarketAnalysisService | null>(null);
 
@@ -684,11 +720,18 @@ export const MarketAnalysisTool = () => {
             setStatus(s);
             setStatusMsg(msg || '');
         });
+        svc.setBarrier(barrier);
         serviceRef.current = svc;
         return () => {
             svc.disconnect();
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [client, getToken]);
+
+    // Sync barrier to service whenever user changes it
+    useEffect(() => {
+        serviceRef.current?.setBarrier(barrier);
+    }, [barrier]);
 
     const handleStart = async () => {
         if (!serviceRef.current) return;
@@ -746,6 +789,42 @@ export const MarketAnalysisTool = () => {
                 </div>
             </div>
 
+            {/* ── Global controls bar ── */}
+            <div className='mat__global-controls'>
+                <div className='mat__ctrl-group'>
+                    <label className='mat__ctrl-label'>Over/Under Barrier</label>
+                    <div className='mat__barrier-row'>
+                        <span className='mat__barrier-preview'>
+                            Over {barrier} · Under {barrier}
+                        </span>
+                        <input
+                            type='range'
+                            min={0}
+                            max={8}
+                            step={1}
+                            value={barrier}
+                            onChange={e => setBarrier(Number(e.target.value))}
+                            className='mat__barrier-slider'
+                        />
+                        <span className='mat__barrier-val'>{barrier}</span>
+                    </div>
+                </div>
+                <div className='mat__ctrl-group'>
+                    <label className='mat__ctrl-label'>Trade Type Focus</label>
+                    <select
+                        className='mat__market-select mat__market-select--sm'
+                        value={tradeTypeFilter}
+                        onChange={e => setTradeTypeFilter(e.target.value)}
+                    >
+                        {TRADE_TYPE_OPTS.map(o => (
+                            <option key={o.value} value={o.value}>
+                                {o.label}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            </div>
+
             {/* ── Section tabs ── */}
             <div className='mat__view-tabs'>
                 {SECTION_TABS.map(({ key, label }) => (
@@ -760,12 +839,33 @@ export const MarketAnalysisTool = () => {
             </div>
 
             {/* ── Section content ── */}
-            {sectionTab === 'rankings' && <RankingsSection results={results} onSelectMarket={handleSelectMarket} />}
-            {sectionTab === 'circles' && (
-                <CirclesSection results={results} selectedSymbol={selectedSymbol} onSymbolChange={setSelectedSymbol} />
+            {sectionTab === 'rankings' && (
+                <RankingsSection
+                    results={results}
+                    onSelectMarket={handleSelectMarket}
+                    tradeTypeFilter={tradeTypeFilter}
+                />
             )}
-            {sectionTab === 'graphical' && <GraphicalSection results={results} onSelectMarket={handleSelectMarket} />}
-            {sectionTab === 'deepscan' && <DeepScanSection results={results} service={serviceRef.current} />}
+            {sectionTab === 'circles' && (
+                <CirclesSection
+                    results={results}
+                    selectedSymbol={selectedSymbol}
+                    onSymbolChange={setSelectedSymbol}
+                    tradeTypeFilter={tradeTypeFilter}
+                    onTradeTypeChange={setTradeTypeFilter}
+                    barrier={barrier}
+                />
+            )}
+            {sectionTab === 'graphical' && (
+                <GraphicalSection
+                    results={results}
+                    onSelectMarket={handleSelectMarket}
+                    tradeTypeFilter={tradeTypeFilter}
+                />
+            )}
+            {sectionTab === 'deepscan' && (
+                <DeepScanSection results={results} service={serviceRef.current} barrier={barrier} />
+            )}
 
             {/* ── Disclaimer ── */}
             <p className='mat__disclaimer'>

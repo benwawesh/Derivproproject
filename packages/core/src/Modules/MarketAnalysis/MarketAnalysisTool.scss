@@ -121,6 +121,78 @@
         }
     }
 
+    // ── Global controls bar ───────────────────────────────────────────────────
+    &__global-controls {
+        display: flex;
+        align-items: flex-end;
+        gap: 24px;
+        flex-wrap: wrap;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 10px;
+        padding: 14px 20px;
+        margin-bottom: 20px;
+    }
+
+    &__barrier-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    &__barrier-preview {
+        font-size: 13px;
+        font-weight: 700;
+        color: #9c6fff;
+        white-space: nowrap;
+        min-width: 120px;
+    }
+
+    &__barrier-slider {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 140px;
+        height: 4px;
+        background: #333;
+        border-radius: 2px;
+        outline: none;
+        cursor: pointer;
+
+        &::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #9c6fff;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        &::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: #9c6fff;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+        &:hover::-webkit-slider-thumb {
+            background: #b388ff;
+        }
+    }
+
+    &__barrier-val {
+        font-size: 18px;
+        font-weight: 900;
+        color: #fff;
+        min-width: 20px;
+        text-align: center;
+    }
+
+    &__market-select--sm {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+
     // ── Section tabs ─────────────────────────────────────────────────────────
     &__view-tabs {
         display: flex;
@@ -808,6 +880,20 @@
             b {
                 color: #c9a8ff;
             }
+        }
+
+        &__barrier-info {
+            font-size: 13px;
+            color: #999;
+            margin: 10px 0 4px;
+            b {
+                color: #9c6fff;
+            }
+        }
+
+        &__barrier-hint {
+            font-size: 11px;
+            color: #555;
         }
 
         &__no-data {

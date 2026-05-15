@@ -188,6 +188,7 @@ export class MarketAnalysisService {
     private tickWindows: number[] = [10, 50, 100, 500];
     private contractType: ContractType = 'digits';
     private digitSubType: DigitSubType = 'matches_differs';
+    private barrier: number = 4; // Over/Under barrier digit (0–8)
     private maxBuffer = 5000;
     private activeSymbols: string[] = [];
 
@@ -200,6 +201,11 @@ export class MarketAnalysisService {
     }
 
     // ── Public configuration ─────────────────────────────────────────────────
+
+    /** Set the Over/Under barrier digit. Valid range 0–8 (Over 8 is the minimum useful upper barrier). */
+    setBarrier(b: number) {
+        this.barrier = Math.max(0, Math.min(8, Math.round(b)));
+    }
 
     setContractType(type: ContractType, subType?: DigitSubType) {
         this.contractType = type;
@@ -643,6 +649,9 @@ export class MarketAnalysisService {
         const ds = this.computeDigitStats(prices);
         const dir = this.computeDirectionStats(directions);
 
+        // Pre-extract last digits for custom barrier computation
+        const digits = prices.map(p => parseInt(p.toString().replace('.', '').slice(-1)));
+
         // Normalised helper metrics
         const chiNorm = Math.min(100, (metrics.chiSquare / 50) * 100);
         const entropyScore = Math.max(0, 100 - (metrics.entropy / 3.32) * 100);
@@ -699,35 +708,55 @@ export class MarketAnalysisService {
             subType: 'matches_differs',
         });
 
-        // ── EVEN / ODD ────────────────────────────────────────────────────────
-        const eoRsiDev = (Math.abs(metrics.digitRsiEvenOdd - 50) / 50) * 100;
-        const evenDev = Math.abs(ds.evenPercentage - 50) * 2;
-        const dominantEO = ds.evenPercentage >= ds.oddPercentage ? 'Even' : 'Odd';
-        const eoScore = Math.min(
-            100,
-            runsNorm * 0.3 + eoRsiDev * 0.25 + evenDev * 0.2 + mwc * 0.15 + entropyScore * 0.1
-        );
+        // ── EVEN / ODD — both signals, complementary (always sum to 100%) ────
+        // Score = raw win percentage so the two signals visually sum to 100%
+        const evenPct = ds.evenPercentage;
+        const oddPct = ds.oddPercentage; // = 100 − evenPct
+        const evenEdge = evenPct - 50;
+        const oddEdge = oddPct - 50;
+        const evenConf: Confidence = Math.abs(evenEdge) >= 7 ? 'High' : Math.abs(evenEdge) >= 3 ? 'Medium' : 'Low';
+        const oddConf: Confidence = Math.abs(oddEdge) >= 7 ? 'High' : Math.abs(oddEdge) >= 3 ? 'Medium' : 'Low';
         signals.push({
-            label: dominantEO,
-            score: eoScore,
-            confidence: eoScore >= 60 ? 'High' : eoScore >= 35 ? 'Medium' : 'Low',
-            explanation: `${dominantEO}: ${Math.max(ds.evenPercentage, ds.oddPercentage).toFixed(1)}% (expected 50%). Runs test Z=${metrics.evenOddRunsZ.toFixed(2)}, Digit RSI=${metrics.digitRsiEvenOdd.toFixed(0)}`,
+            label: `Even (${evenPct.toFixed(1)}%)`,
+            score: evenPct,
+            confidence: evenConf,
+            explanation: `Even digits: ${evenPct.toFixed(1)}% vs expected 50%. Edge: ${evenEdge >= 0 ? '+' : ''}${evenEdge.toFixed(1)}%. Runs test Z=${metrics.evenOddRunsZ.toFixed(2)}, Digit RSI=${metrics.digitRsiEvenOdd.toFixed(0)}`,
+            subType: 'even_odd',
+        });
+        signals.push({
+            label: `Odd (${oddPct.toFixed(1)}%)`,
+            score: oddPct,
+            confidence: oddConf,
+            explanation: `Odd digits: ${oddPct.toFixed(1)}% vs expected 50%. Edge: ${oddEdge >= 0 ? '+' : ''}${oddEdge.toFixed(1)}%. Runs test Z=${metrics.evenOddRunsZ.toFixed(2)}, Digit RSI=${metrics.digitRsiEvenOdd.toFixed(0)}`,
             subType: 'even_odd',
         });
 
-        // ── OVER 4 / UNDER 5 ──────────────────────────────────────────────────
-        const ouRsiDev = (Math.abs(metrics.digitRsiOverUnder - 50) / 50) * 100;
-        const ouDev = Math.abs(ds.overPercentage - 50) * 2;
-        const dominantOU = ds.overPercentage >= ds.underPercentage ? 'Over 4' : 'Under 5';
-        const ouScore = Math.min(
-            100,
-            ouDev * 0.3 + ouRsiDev * 0.25 + mwc * 0.25 + entropyScore * 0.1 + metrics.binomialConfidence * 0.1
-        );
+        // ── OVER/UNDER — both signals with custom barrier ─────────────────────
+        // Score = actual win % so user sees the direct probability
+        const bar = this.barrier;
+        const overCount = digits.filter(d => d > bar).length;
+        const underCount = digits.filter(d => d < bar).length;
+        const overPct = (overCount / n) * 100;
+        const underPct = (underCount / n) * 100;
+        // Expected win rates based on barrier position (uniform distribution)
+        const overExpected = ((9 - bar) / 10) * 100; // digits bar+1 … 9
+        const underExpected = (bar / 10) * 100; // digits 0 … bar-1
+        const overEdge = overPct - overExpected;
+        const underEdge = underPct - underExpected;
+        const overConf: Confidence = overEdge >= 5 ? 'High' : overEdge >= 2 ? 'Medium' : 'Low';
+        const underConf: Confidence = underEdge >= 5 ? 'High' : underEdge >= 2 ? 'Medium' : 'Low';
         signals.push({
-            label: dominantOU,
-            score: ouScore,
-            confidence: ouScore >= 60 ? 'High' : ouScore >= 35 ? 'Medium' : 'Low',
-            explanation: `${dominantOU}: ${Math.max(ds.overPercentage, ds.underPercentage).toFixed(1)}% (expected 50%). Digit RSI=${metrics.digitRsiOverUnder.toFixed(0)}, Window consistency=${mwc.toFixed(0)}%`,
+            label: `Over ${bar} (${overPct.toFixed(1)}%)`,
+            score: overPct,
+            confidence: overConf,
+            explanation: `Over ${bar}: ${overPct.toFixed(1)}% actual vs ${overExpected.toFixed(0)}% expected. Edge: ${overEdge >= 0 ? '+' : ''}${overEdge.toFixed(1)}%. Digit RSI=${metrics.digitRsiOverUnder.toFixed(0)}, Window consistency=${mwc.toFixed(0)}%`,
+            subType: 'over_under',
+        });
+        signals.push({
+            label: `Under ${bar} (${underPct.toFixed(1)}%)`,
+            score: underPct,
+            confidence: underConf,
+            explanation: `Under ${bar}: ${underPct.toFixed(1)}% actual vs ${underExpected.toFixed(0)}% expected. Edge: ${underEdge >= 0 ? '+' : ''}${underEdge.toFixed(1)}%. Digit RSI=${metrics.digitRsiOverUnder.toFixed(0)}, Window consistency=${mwc.toFixed(0)}%`,
             subType: 'over_under',
         });
 
@@ -760,12 +789,15 @@ export class MarketAnalysisService {
 
     // ── Public deep scan ─────────────────────────────────────────────────────
 
-    /** Run full deep scan on a single market. Returns null if not enough data. */
+    /** Run full deep scan on a single market. Returns null if not enough data.
+     *  Matches/Differs are excluded — they inflate scores due to base-rate advantage. */
     deepScanMarket(symbol: string): DeepScanResult | null {
         const data = this.markets.get(symbol);
         if (!data || data.priceBuffer.length < 50) return null;
         const metrics = this.computeAdvancedMetrics(data.priceBuffer, data.directionBuffer);
-        const allSignals = this.scoreAllSignals(data.priceBuffer, data.directionBuffer, metrics);
+        const allSignals = this.scoreAllSignals(data.priceBuffer, data.directionBuffer, metrics).filter(
+            s => s.subType !== 'matches_differs'
+        );
         return {
             symbol,
             name: MARKET_NAME_MAP.get(symbol) ?? symbol,
