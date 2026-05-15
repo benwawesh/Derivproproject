@@ -20,16 +20,18 @@ const LoginButton = ({ className }) => {
             has_effect
             text={localize('Log in')}
             onClick={async () => {
+                // DPA uses legacy OAuth — must be checked first, before wallet or OIDC paths
+                if (is_derivprofundedacademy) {
+                    sessionStorage.setItem('redirect_url', window.location.href);
+                    window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=133890&l=${getLanguage()}&brand=deriv`;
+                    return;
+                }
                 if (has_wallet_cookie) {
                     if (isStaging()) {
                         location.href = `https://staging-hub.${getDomainUrl()}/tradershub/login`;
                     } else {
                         location.href = `https://hub.${getDomainUrl()}/tradershub/login`;
                     }
-                }
-                if (is_derivprofundedacademy) {
-                    sessionStorage.setItem('redirect_url', window.location.href);
-                    window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=133890&l=${getLanguage()}&brand=deriv`;
                     return;
                 }
                 const is_tmb_enabled = await isTmbEnabled();
