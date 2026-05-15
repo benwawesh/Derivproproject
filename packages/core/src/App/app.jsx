@@ -23,9 +23,15 @@ import { getInitialLanguage, initializeI18n, TranslationProvider } from '@deriv-
 
 import WS from 'Services/ws-methods';
 
-// On mobile, browsers clear sessionStorage when a tab is suspended/reloaded.
-// Restore session keys from localStorage so the user stays logged in.
-(function restoreSessionFromLocalStorage() {
+// DPA uses legacy OAuth (app_id 133890), not OIDC. Disable the TMB session check
+// so getActiveAccounts() doesn't call requestSessionActive() and trigger handleLogout()
+// when there is no OIDC session — which would wipe active_loginid from localStorage.
+(function initDPASession() {
+    if (/derivprofundedacademy\.com/.test(window.location.hostname)) {
+        localStorage.setItem('is_tmb_enabled', 'false');
+    }
+    // On mobile, browsers clear sessionStorage when a tab is suspended/reloaded.
+    // Restore session keys from localStorage so the user stays logged in.
     const keys = ['active_loginid', 'active_wallet_loginid'];
     keys.forEach(key => {
         if (!sessionStorage.getItem(key) && localStorage.getItem(key)) {
