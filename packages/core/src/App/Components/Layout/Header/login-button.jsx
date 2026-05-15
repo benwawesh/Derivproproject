@@ -23,7 +23,7 @@ const LoginButton = ({ className }) => {
                 // DPA uses legacy OAuth — must be checked first, before wallet or OIDC paths
                 if (is_derivprofundedacademy) {
                     sessionStorage.setItem('redirect_url', window.location.href);
-                    window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=133890&l=${getLanguage()}&brand=deriv`;
+                    window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=133890&brand=deriv&redirect=home&l=${getLanguage()}`;
                     return;
                 }
                 if (has_wallet_cookie) {
