@@ -430,48 +430,164 @@
     }
 }
 
-/* ── Leaderboard — mobile responsive ───────────────────────────────────────── */
-@media (max-width: 600px) {
+/* ── Leaderboard — tablet ───────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+    .dpa-lb {
+        &__banner-inner {
+            padding: 32px 20px;
+            gap: 24px;
+        }
+        &__banner-title {
+            font-size: 32px;
+        }
+        &__banner-prizes {
+            justify-content: flex-start;
+        }
+        &__podium-slot {
+            max-width: 160px;
+        }
+    }
+}
+
+/* ── Leaderboard — mobile ───────────────────────────────────────────────────── */
+@media (max-width: 640px) {
     .dpa-lb {
         &__banner-inner {
             padding: 24px 16px;
             flex-direction: column;
-            gap: 20px;
+            gap: 16px;
         }
         &__banner-title {
-            font-size: 24px;
-        }
-        &__banner-sub {
-            font-size: 14px;
-        }
-        &__podium {
-            gap: 8px;
-            padding: 20px 0 0;
-            margin-bottom: 24px;
-        }
-        &__podium-slot {
-            max-width: 100px;
-        }
-        &__podium-avatar {
-            width: 48px;
-            height: 48px;
-            font-size: 18px;
-        }
-        &__podium-slot--1 &__podium-avatar {
-            width: 60px;
-            height: 60px;
             font-size: 22px;
         }
-        &__podium-name {
-            font-size: 11px;
-        }
-        &__podium-profit {
+        &__banner-sub {
             font-size: 13px;
         }
-        &__table thead th,
-        &__table tbody td {
-            padding: 10px 8px;
+        &__banner-prizes {
+            justify-content: center;
+            width: 100%;
+        }
+        &__banner-prize {
+            min-width: 64px;
+            padding: 8px 10px;
+        }
+        &__banner-prize-val {
+            font-size: 13px;
+        }
+
+        &__content {
+            padding: 20px 12px 48px;
+        }
+
+        /* Podium */
+        &__podium {
+            gap: 6px;
+            padding: 16px 0 0;
+            margin-bottom: 20px;
+        }
+        &__podium-slot {
+            max-width: 90px;
+            gap: 4px;
+        }
+        &__podium-crown {
+            font-size: 20px;
+        }
+        &__podium-avatar {
+            width: 44px;
+            height: 44px;
+            font-size: 16px;
+        }
+        &__podium-slot--1 &__podium-avatar {
+            width: 56px;
+            height: 56px;
+            font-size: 20px;
+        }
+        &__podium-name {
+            font-size: 10px;
+        }
+        &__podium-profit {
             font-size: 12px;
+        }
+        &__podium-slot--1 &__podium-profit {
+            font-size: 14px;
+        }
+        &__podium-prize {
+            font-size: 10px;
+            padding: 2px 6px;
+        }
+        &__podium-bar {
+            &.gold {
+                height: 56px;
+            }
+            &.silver {
+                height: 40px;
+            }
+            &.bronze {
+                height: 30px;
+            }
+        }
+
+        /* Filter tabs — horizontal scroll, no wrap */
+        &__filters {
+            overflow-x: auto;
+            flex-wrap: nowrap;
+            padding-bottom: 6px;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            &::-webkit-scrollbar {
+                display: none;
+            }
+        }
+        &__filter-btn {
+            flex-shrink: 0;
+            padding: 6px 14px;
+            font-size: 13px;
+        }
+        &__filter-count {
+            display: none;
+        }
+
+        /* Table — sticky rank column, hide low-priority columns */
+        &__table-wrap {
+            border-radius: 8px;
+        }
+        &__table {
+            font-size: 12px;
+
+            thead tr th,
+            tbody tr td {
+                padding: 10px 8px;
+            }
+
+            /* Hide Bot and Market columns on small screens */
+            th:nth-child(6),
+            td:nth-child(6),
+            th:nth-child(7),
+            td:nth-child(7) {
+                display: none;
+            }
+
+            /* Sticky rank column */
+            th:nth-child(1),
+            td:nth-child(1) {
+                position: sticky;
+                left: 0;
+                background: inherit;
+                z-index: 1;
+            }
+            thead th:nth-child(1) {
+                background: #800000;
+            }
+        }
+
+        &__trader-avatar {
+            width: 28px;
+            height: 28px;
+            font-size: 11px;
+        }
+        &__disclaimer {
+            font-size: 11px;
+            margin-top: 20px;
         }
     }
 }

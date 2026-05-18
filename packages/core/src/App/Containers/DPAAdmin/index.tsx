@@ -407,7 +407,15 @@ const AdminPage = observer(() => {
     const [pw, setPw] = useState('');
     const [pw_error, setPwError] = useState('');
     const [tab, setTab] = useState<
-        'settings' | 'bots' | 'funded' | 'users' | 'participants' | 'challenges' | 'exitPrices' | 'marketing'
+        | 'settings'
+        | 'bots'
+        | 'funded'
+        | 'users'
+        | 'participants'
+        | 'challenges'
+        | 'exitPrices'
+        | 'marketing'
+        | 'traderProfiles'
     >('settings');
 
     // ── Settings state ────────────────────────────────────────────────────
@@ -578,6 +586,295 @@ const AdminPage = observer(() => {
     const [user_search, setUserSearch] = useState('');
 
     // ── Marketing accounts state ──────────────────────────────────────────
+    // ── Trader Profiles ───────────────────────────────────────────────────
+    const DPA_API = /derivprofundedacademy\.com/.test(window.location.hostname)
+        ? 'https://api.derivprofundedacademy.com/api'
+        : 'http://localhost:8011/api';
+
+    const DERIV_PAYOUTS: Record<string, number> = {
+        Rise: 87,
+        Fall: 87,
+        Higher: 87,
+        Lower: 87,
+        Even: 95,
+        Odd: 95,
+        Matches: 95,
+        Differs: 95,
+        Over: 95,
+        Under: 95,
+        Touch: 75,
+        'No Touch': 75,
+    };
+
+    const TRADE_TYPES = [
+        'Rise',
+        'Fall',
+        'Even',
+        'Odd',
+        'Higher',
+        'Lower',
+        'Matches',
+        'Differs',
+        'Over',
+        'Under',
+        'Touch',
+        'No Touch',
+    ];
+    const MARKETS = [
+        'Volatility 10 (1s)',
+        'Volatility 25 (1s)',
+        'Volatility 50 (1s)',
+        'Volatility 75 (1s)',
+        'Volatility 100 (1s)',
+        'Volatility 10',
+        'Volatility 25',
+        'Volatility 50',
+        'Volatility 75',
+        'Volatility 100',
+        'EUR/USD',
+        'GBP/USD',
+        'USD/JPY',
+        'AUD/USD',
+        'Gold (XAU)',
+        'Bitcoin (BTC)',
+    ];
+
+    // Auto-generate a masked CR ID like CR56**78 and an internal CR login
+    const gen_cr = () => {
+        const n = Math.floor(100000 + Math.random() * 900000); // 6-digit number
+        const s = String(n);
+        return {
+            masked_id: `CR${s.slice(0, 2)}**${s.slice(4)}`,
+            deriv_loginid: `CR${n}`,
+        };
+    };
+
+    const EMPTY_PROFILE = {
+        display_name: '',
+        account_type: 'funded',
+        funded_balance: '1000',
+        show_on_leaderboard: true,
+        show_on_free_bots: false,
+    };
+
+    const EMPTY_GEN = {
+        num_trades: '100',
+        trade_type: 'Rise',
+        market: 'Volatility 100 (1s)',
+        time_frame_days: '30',
+        deriv_payout_rate: '87',
+        platform_commission: '',
+        win_rate_percent: '65',
+        stake: '5',
+        bot_used: '',
+        reset_trades: false,
+    };
+
+    const [trader_profiles, setTraderProfiles] = useState<any[]>([]);
+    const [tp_loading, setTpLoading] = useState(false);
+    const [tp_form, setTpForm] = useState<any>({ ...EMPTY_PROFILE });
+    const [tp_edit_id, setTpEditId] = useState<number | null>(null);
+    const [tp_saving, setTpSaving] = useState(false);
+    const [gen_profile_id, setGenProfileId] = useState<number | null>(null);
+    const [gen_form, setGenForm] = useState<any>({ ...EMPTY_GEN });
+    const [gen_loading, setGenLoading] = useState(false);
+    const [gen_result, setGenResult] = useState<any>(null);
+    const [commission_saving, setCommissionSaving] = useState(false);
+    const [commission_saved, setCommissionSaved] = useState(false);
+    const [markup_status, setMarkupStatus] = useState<'idle' | 'detecting' | 'ok' | 'fallback'>('idle');
+
+    const loadTraderProfiles = async () => {
+        setTpLoading(true);
+        try {
+            const r = await fetch(`${DPA_API}/admin/trader-profiles/`);
+            setTraderProfiles(await r.json());
+        } finally {
+            setTpLoading(false);
+        }
+    };
+
+    // Open one WebSocket proposal call and return the payout for $100 stake CALL on R_100 5t
+    const _proposalPayout = (app_id: string): Promise<number> =>
+        new Promise(resolve => {
+            try {
+                const ws = new WebSocket(`wss://ws.binaryws.com/websockets/v3?app_id=${app_id}`);
+                const timer = setTimeout(() => {
+                    try {
+                        ws.close();
+                    } catch {}
+                    resolve(-1);
+                }, 8000);
+                ws.onopen = () =>
+                    ws.send(
+                        JSON.stringify({
+                            proposal: 1,
+                            amount: 100,
+                            basis: 'stake',
+                            contract_type: 'CALL',
+                            currency: 'USD',
+                            duration: 5,
+                            duration_unit: 't',
+                            symbol: 'R_100',
+                        })
+                    );
+                ws.onmessage = e => {
+                    const d = JSON.parse(e.data);
+                    if (d.msg_type === 'proposal' && d.proposal?.payout) {
+                        clearTimeout(timer);
+                        ws.close();
+                        resolve(d.proposal.payout);
+                    }
+                };
+                ws.onerror = () => resolve(-1);
+            } catch {
+                resolve(-1);
+            }
+        });
+
+    // Auto-detect markup from the Deriv API by comparing payout with vs without platform markup
+    const detectDerivMarkup = async (): Promise<number> => {
+        const platform_app_id = window.localStorage.getItem('config.app_id') || '36300';
+        const [platform_payout, base_payout] = await Promise.all([
+            _proposalPayout(platform_app_id),
+            _proposalPayout('1089'), // Deriv's own tool app — 0% markup baseline
+        ]);
+        if (platform_payout < 0 || base_payout < 0) return -1;
+        const effective_pct = ((platform_payout - 100) / 100) * 100;
+        const base_pct = ((base_payout - 100) / 100) * 100;
+        return Math.max(0, Math.round((base_pct - effective_pct) * 10) / 10);
+    };
+
+    const loadDpaCommission = async () => {
+        setMarkupStatus('detecting');
+        const markup = await detectDerivMarkup();
+        if (markup >= 0) {
+            // Successfully read from Deriv API — save it to Django for persistence
+            setMarkupStatus('ok');
+            setGenForm((f: any) => ({ ...f, platform_commission: String(markup) }));
+            fetch(`${DPA_API}/settings/`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ platform_commission: markup }),
+            }).catch(() => {});
+        } else {
+            // Deriv API unreachable — fall back to last saved value in Django
+            setMarkupStatus('fallback');
+            try {
+                const r = await fetch(`${DPA_API}/settings/`);
+                const s = await r.json();
+                setGenForm((f: any) => ({ ...f, platform_commission: String(s.platform_commission ?? 0) }));
+            } catch {
+                /* ignore */
+            }
+        }
+    };
+
+    const saveDefaultCommission = async () => {
+        setCommissionSaving(true);
+        setCommissionSaved(false);
+        try {
+            await fetch(`${DPA_API}/settings/`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ platform_commission: parseFloat(gen_form.platform_commission) || 0 }),
+            });
+            setCommissionSaved(true);
+            setTimeout(() => setCommissionSaved(false), 2500);
+        } finally {
+            setCommissionSaving(false);
+        }
+    };
+
+    const saveTraderProfile = async () => {
+        setTpSaving(true);
+        try {
+            const bal = parseFloat(tp_form.funded_balance) || 1000;
+            const ids = tp_edit_id ? {} : gen_cr(); // auto-generate only on create
+            const body = {
+                display_name: tp_form.display_name,
+                account_type: tp_form.account_type,
+                start_balance: bal,
+                current_balance: bal,
+                total_trades: 0,
+                winning_trades: 0,
+                show_on_leaderboard: tp_form.show_on_leaderboard,
+                show_on_free_bots: tp_form.show_on_free_bots,
+                ...ids,
+            };
+            const url = tp_edit_id
+                ? `${DPA_API}/admin/trader-profiles/${tp_edit_id}/`
+                : `${DPA_API}/admin/trader-profiles/`;
+            const method = tp_edit_id ? 'PATCH' : 'POST';
+            const r = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            if (!r.ok) throw new Error('Save failed');
+            setTpEditId(null);
+            setTpForm({ ...EMPTY_PROFILE });
+            await loadTraderProfiles();
+        } finally {
+            setTpSaving(false);
+        }
+    };
+
+    const deleteTraderProfile = async (id: number) => {
+        if (!confirm('Delete this trader profile and all its trades?')) return;
+        await fetch(`${DPA_API}/admin/trader-profiles/${id}/`, { method: 'DELETE' });
+        await loadTraderProfiles();
+    };
+
+    const generateTrades = async () => {
+        if (!gen_profile_id) return;
+        setGenLoading(true);
+        setGenResult(null);
+        try {
+            const BARRIER_PAYOUTS_GEN: Record<string, number> = {
+                '0': 975,
+                '1': 768,
+                '2': 635,
+                '3': 533,
+                '4': 438,
+                '5': 350,
+                '6': 268,
+                '7': 195,
+                '8': 130,
+                '9': 65,
+            };
+            const is_over_under = gen_form.trade_type === 'Over' || gen_form.trade_type === 'Under';
+            const barrier = String(gen_form.barrier ?? '2');
+            const markup = parseFloat(gen_form.platform_commission) || 0;
+            const deriv_base = is_over_under
+                ? (BARRIER_PAYOUTS_GEN[barrier] ?? 350)
+                : (DERIV_PAYOUTS[gen_form.trade_type] ?? 87);
+            const effective = Math.max(0, deriv_base - markup);
+            const body = {
+                num_trades: parseInt(gen_form.num_trades),
+                trade_type: gen_form.trade_type,
+                barrier: is_over_under ? parseInt(barrier) : undefined,
+                market: gen_form.market,
+                time_frame_days: parseInt(gen_form.time_frame_days),
+                deriv_payout_rate: deriv_base,
+                platform_payout_rate: effective, // what trader actually receives
+                win_rate_percent: parseFloat(gen_form.win_rate_percent),
+                stake: parseFloat(gen_form.stake),
+                bot_used: gen_form.bot_used,
+                reset_trades: gen_form.reset_trades,
+            };
+            const r = await fetch(`${DPA_API}/admin/trader-profiles/${gen_profile_id}/generate-trades/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            const result = await r.json();
+            setGenResult(result);
+            await loadTraderProfiles();
+        } finally {
+            setGenLoading(false);
+        }
+    };
+
     const [marketing_accounts, setMarketingAccounts] = useState<any[]>([]);
     const [marketing_loading, setMarketingLoading] = useState(false);
     const [marketing_form, setMarketingForm] = useState({
@@ -949,6 +1246,13 @@ const AdminPage = observer(() => {
         try {
             setSaving(true);
             await updateSettings(settings);
+            // Also persist platform_commission to the Django DPA backend
+            const commission = (settings.platform_commission as number) ?? 0;
+            fetch(`${DPA_API}/settings/`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ platform_commission: commission }),
+            }).catch(() => {});
             setSaved(true);
             setTimeout(() => setSaved(false), 2000);
         } finally {
@@ -1119,6 +1423,16 @@ const AdminPage = observer(() => {
                     >
                         🎯 Marketing
                     </button>
+                    <button
+                        className={`dpa-admin__tab${tab === 'traderProfiles' ? ' active' : ''}`}
+                        onClick={() => {
+                            setTab('traderProfiles');
+                            loadTraderProfiles();
+                            loadDpaCommission();
+                        }}
+                    >
+                        🏆 Trader Profiles
+                    </button>
                 </div>
             </div>
 
@@ -1213,6 +1527,17 @@ const AdminPage = observer(() => {
                                         value={settings.profit_split_trader as number}
                                         onChange={e => set('profit_split_trader', +e.target.value)}
                                     />
+                                </label>
+                                <label>
+                                    Platform Commission on Payout (%)
+                                    <input
+                                        type='number'
+                                        value={(settings.platform_commission as number) ?? 0}
+                                        onChange={e => set('platform_commission', +e.target.value)}
+                                    />
+                                    <small style={{ color: '#888', fontSize: 11 }}>
+                                        Deducted from Deriv rate when generating trades
+                                    </small>
                                 </label>
                                 <label>
                                     Scale Up Months
@@ -3010,6 +3335,542 @@ const AdminPage = observer(() => {
                                                 className='dpa-admin__btn'
                                                 style={{ background: '#555', padding: '4px 10px', fontSize: 12 }}
                                                 onClick={() => handleDeleteMarketing(acc)}
+                                            >
+                                                Delete
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
+            )}
+            {/* ── Trader Profiles Tab ──────────────────────────────────────── */}
+            {tab === 'traderProfiles' && (
+                <div className='dpa-admin__section'>
+                    <h2>Trader Profiles</h2>
+
+                    {/* Create / Edit form */}
+                    <div className='dpa-admin__card' style={{ marginBottom: 28 }}>
+                        <h3>{tp_edit_id ? 'Edit Profile' : 'Create New Profile'}</h3>
+                        <p style={{ fontSize: 12, color: '#888', margin: '0 0 14px' }}>
+                            Masked ID and CR login are auto-generated on create.
+                        </p>
+                        <div
+                            className='dpa-admin__fields'
+                            style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))',
+                                gap: 12,
+                            }}
+                        >
+                            <label>
+                                Display Name
+                                <input
+                                    className='dpa-admin__input'
+                                    value={tp_form.display_name}
+                                    onChange={e => setTpForm((f: any) => ({ ...f, display_name: e.target.value }))}
+                                />
+                            </label>
+                            <label>
+                                Account Type
+                                <select
+                                    className='dpa-admin__input'
+                                    value={tp_form.account_type}
+                                    onChange={e => setTpForm((f: any) => ({ ...f, account_type: e.target.value }))}
+                                >
+                                    <option value='funded'>Funded Account</option>
+                                    <option value='real'>Real Account</option>
+                                    <option value='marketing'>Marketing Account</option>
+                                </select>
+                            </label>
+                            <label>
+                                Funded Balance ($)
+                                <input
+                                    type='number'
+                                    className='dpa-admin__input'
+                                    value={tp_form.funded_balance}
+                                    onChange={e => setTpForm((f: any) => ({ ...f, funded_balance: e.target.value }))}
+                                />
+                                <small style={{ color: '#888', fontSize: 11 }}>Starting funded account amount</small>
+                            </label>
+                            <label
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 8,
+                                    alignSelf: 'end',
+                                    paddingBottom: 6,
+                                }}
+                            >
+                                <input
+                                    type='checkbox'
+                                    checked={tp_form.show_on_leaderboard}
+                                    onChange={e =>
+                                        setTpForm((f: any) => ({ ...f, show_on_leaderboard: e.target.checked }))
+                                    }
+                                />
+                                Show on Leaderboard
+                            </label>
+                            <label
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 8,
+                                    alignSelf: 'end',
+                                    paddingBottom: 6,
+                                }}
+                            >
+                                <input
+                                    type='checkbox'
+                                    checked={tp_form.show_on_free_bots}
+                                    onChange={e =>
+                                        setTpForm((f: any) => ({ ...f, show_on_free_bots: e.target.checked }))
+                                    }
+                                />
+                                Show on Free Bots
+                            </label>
+                        </div>
+                        <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+                            <button
+                                className='dpa-admin__btn'
+                                onClick={saveTraderProfile}
+                                disabled={tp_saving || !tp_form.display_name}
+                            >
+                                {tp_saving ? 'Saving…' : tp_edit_id ? 'Update Profile' : 'Create Profile'}
+                            </button>
+                            {tp_edit_id && (
+                                <button
+                                    className='dpa-admin__btn'
+                                    style={{ background: '#555' }}
+                                    onClick={() => {
+                                        setTpEditId(null);
+                                        setTpForm({ ...EMPTY_PROFILE });
+                                    }}
+                                >
+                                    Cancel
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Trade Generator */}
+                    {gen_profile_id &&
+                        (() => {
+                            const BARRIER_PAYOUTS: Record<string, number> = {
+                                '0': 975,
+                                '1': 768,
+                                '2': 635,
+                                '3': 533,
+                                '4': 438,
+                                '5': 350,
+                                '6': 268,
+                                '7': 195,
+                                '8': 130,
+                                '9': 65,
+                            };
+                            const is_over_under = gen_form.trade_type === 'Over' || gen_form.trade_type === 'Under';
+                            const barrier = String(gen_form.barrier ?? '2');
+                            const markup = parseFloat(gen_form.platform_commission) || 0;
+                            const deriv_base = is_over_under
+                                ? (BARRIER_PAYOUTS[barrier] ?? 350)
+                                : (DERIV_PAYOUTS[gen_form.trade_type] ?? 87);
+                            const effective = Math.max(0, deriv_base - markup);
+                            const stake = parseFloat(gen_form.stake) || 0;
+                            const win_profit = (stake * effective) / 100;
+                            const label = is_over_under ? `${gen_form.trade_type} ${barrier}` : gen_form.trade_type;
+
+                            const markupBadge =
+                                markup_status === 'detecting' ? (
+                                    <span style={{ color: '#f59e0b' }}>Detecting from Deriv API…</span>
+                                ) : markup_status === 'ok' ? (
+                                    <span style={{ color: '#16a534' }}>✓ {markup}% — read live from Deriv API</span>
+                                ) : markup_status === 'fallback' ? (
+                                    <span style={{ color: '#f59e0b' }}>
+                                        ⚠ {markup}% — from saved settings (Deriv API unreachable)
+                                    </span>
+                                ) : (
+                                    <span style={{ color: '#888' }}>{markup}%</span>
+                                );
+
+                            return (
+                                <div
+                                    className='dpa-admin__card'
+                                    style={{ marginBottom: 28, border: '2px solid #00a79e' }}
+                                >
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'flex-start',
+                                            flexWrap: 'wrap',
+                                            gap: 8,
+                                            marginBottom: 4,
+                                        }}
+                                    >
+                                        <h3 style={{ color: '#00a79e', margin: 0 }}>
+                                            Generate Trades —{' '}
+                                            {trader_profiles.find(p => p.id === gen_profile_id)?.display_name}
+                                        </h3>
+                                        <button
+                                            className='dpa-admin__btn'
+                                            style={{
+                                                fontSize: 11,
+                                                padding: '4px 10px',
+                                                background: '#222',
+                                                border: '1px solid #444',
+                                            }}
+                                            onClick={loadDpaCommission}
+                                            disabled={markup_status === 'detecting'}
+                                            title='Re-read markup from Deriv API'
+                                        >
+                                            {markup_status === 'detecting' ? '⟳ Detecting…' : '⟳ Re-sync markup'}
+                                        </button>
+                                    </div>
+
+                                    {/* Markup info bar — fully automatic, no manual input */}
+                                    <div
+                                        style={{
+                                            marginBottom: 14,
+                                            padding: '8px 14px',
+                                            background: '#0d1a0d',
+                                            border: '1px solid #1a3a1a',
+                                            borderRadius: 6,
+                                            fontSize: 12,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 10,
+                                            flexWrap: 'wrap',
+                                        }}
+                                    >
+                                        <span style={{ color: '#aaa' }}>API Markup:</span>
+                                        {markupBadge}
+                                    </div>
+
+                                    <div
+                                        style={{
+                                            display: 'grid',
+                                            gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))',
+                                            gap: 12,
+                                        }}
+                                    >
+                                        <label>
+                                            Number of Trades
+                                            <input
+                                                type='number'
+                                                className='dpa-admin__input'
+                                                value={gen_form.num_trades}
+                                                onChange={e =>
+                                                    setGenForm((f: any) => ({ ...f, num_trades: e.target.value }))
+                                                }
+                                            />
+                                        </label>
+                                        <label>
+                                            Trade Type
+                                            <select
+                                                className='dpa-admin__input'
+                                                value={gen_form.trade_type}
+                                                onChange={e =>
+                                                    setGenForm((f: any) => ({
+                                                        ...f,
+                                                        trade_type: e.target.value,
+                                                        barrier: '2',
+                                                    }))
+                                                }
+                                            >
+                                                {TRADE_TYPES.map(t => (
+                                                    <option key={t} value={t}>
+                                                        {t}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                        {is_over_under && (
+                                            <label>
+                                                Barrier Digit (0–9)
+                                                <select
+                                                    className='dpa-admin__input'
+                                                    value={barrier}
+                                                    onChange={e =>
+                                                        setGenForm((f: any) => ({ ...f, barrier: e.target.value }))
+                                                    }
+                                                >
+                                                    {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(d => (
+                                                        <option key={d} value={String(d)}>
+                                                            {gen_form.trade_type} {d} —{' '}
+                                                            {Math.max(0, (BARRIER_PAYOUTS[String(d)] ?? 0) - markup)}%
+                                                            payout
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </label>
+                                        )}
+                                        <label>
+                                            Market
+                                            <select
+                                                className='dpa-admin__input'
+                                                value={gen_form.market}
+                                                onChange={e =>
+                                                    setGenForm((f: any) => ({ ...f, market: e.target.value }))
+                                                }
+                                            >
+                                                {MARKETS.map(m => (
+                                                    <option key={m} value={m}>
+                                                        {m}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                        <label>
+                                            Time Frame (days)
+                                            <input
+                                                type='number'
+                                                className='dpa-admin__input'
+                                                value={gen_form.time_frame_days}
+                                                onChange={e =>
+                                                    setGenForm((f: any) => ({ ...f, time_frame_days: e.target.value }))
+                                                }
+                                            />
+                                        </label>
+                                        <label>
+                                            Win Rate (%)
+                                            <input
+                                                type='number'
+                                                className='dpa-admin__input'
+                                                value={gen_form.win_rate_percent}
+                                                onChange={e =>
+                                                    setGenForm((f: any) => ({ ...f, win_rate_percent: e.target.value }))
+                                                }
+                                            />
+                                        </label>
+                                        <label>
+                                            Stake per Trade ($)
+                                            <input
+                                                type='number'
+                                                className='dpa-admin__input'
+                                                value={gen_form.stake}
+                                                onChange={e =>
+                                                    setGenForm((f: any) => ({ ...f, stake: e.target.value }))
+                                                }
+                                            />
+                                        </label>
+                                        <label>
+                                            Bot Name
+                                            <input
+                                                className='dpa-admin__input'
+                                                value={gen_form.bot_used}
+                                                onChange={e =>
+                                                    setGenForm((f: any) => ({ ...f, bot_used: e.target.value }))
+                                                }
+                                            />
+                                        </label>
+                                        <label
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 8,
+                                                alignSelf: 'end',
+                                                paddingBottom: 8,
+                                            }}
+                                        >
+                                            <input
+                                                type='checkbox'
+                                                checked={gen_form.reset_trades}
+                                                onChange={e =>
+                                                    setGenForm((f: any) => ({ ...f, reset_trades: e.target.checked }))
+                                                }
+                                            />
+                                            <span>Clear existing trades first</span>
+                                        </label>
+                                    </div>
+
+                                    {/* Payout summary — read-only, fully computed */}
+                                    <div
+                                        style={{
+                                            marginTop: 14,
+                                            padding: '12px 16px',
+                                            background: '#0d1f0d',
+                                            border: '1px solid #1a3a1a',
+                                            borderRadius: 8,
+                                            fontSize: 13,
+                                            lineHeight: 2,
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 24px' }}>
+                                            <span>
+                                                <span style={{ color: '#aaa' }}>Contract:</span>{' '}
+                                                <strong style={{ color: '#fff' }}>{label}</strong>
+                                            </span>
+                                            <span>
+                                                <span style={{ color: '#aaa' }}>Deriv base:</span>{' '}
+                                                <strong style={{ color: '#aaa' }}>{deriv_base}%</strong>
+                                            </span>
+                                            <span>
+                                                <span style={{ color: '#aaa' }}>Markup:</span>{' '}
+                                                <strong style={{ color: '#f59e0b' }}>−{markup}%</strong>
+                                            </span>
+                                            <span>
+                                                <span style={{ color: '#aaa' }}>Trader payout:</span>{' '}
+                                                <strong style={{ color: '#00a79e', fontSize: 15 }}>{effective}%</strong>
+                                            </span>
+                                        </div>
+                                        <div
+                                            style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 24px', marginTop: 2 }}
+                                        >
+                                            <span>
+                                                <span style={{ color: '#aaa' }}>Win profit:</span>{' '}
+                                                <strong style={{ color: '#16a534' }}>+${win_profit.toFixed(2)}</strong>
+                                            </span>
+                                            <span>
+                                                <span style={{ color: '#aaa' }}>Loss:</span>{' '}
+                                                <strong style={{ color: '#c62828' }}>−${stake.toFixed(2)}</strong>
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display: 'flex', gap: 10, marginTop: 14, alignItems: 'center' }}>
+                                        <button
+                                            className='dpa-admin__btn'
+                                            style={{ background: '#00a79e' }}
+                                            onClick={generateTrades}
+                                            disabled={gen_loading || markup_status === 'detecting'}
+                                        >
+                                            {gen_loading ? 'Generating…' : `Generate ${gen_form.num_trades} Trades`}
+                                        </button>
+                                        <button
+                                            className='dpa-admin__btn'
+                                            style={{ background: '#555' }}
+                                            onClick={() => {
+                                                setGenProfileId(null);
+                                                setGenResult(null);
+                                            }}
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+
+                                    {gen_result && (
+                                        <div
+                                            style={{
+                                                marginTop: 14,
+                                                padding: '12px 16px',
+                                                background: '#e0f2fe',
+                                                borderRadius: 8,
+                                                fontSize: 13,
+                                            }}
+                                        >
+                                            <strong>Done!</strong> {gen_result.created} trades &nbsp;—&nbsp;
+                                            {gen_result.wins}W / {gen_result.losses}L ({gen_result.win_rate}% win rate)
+                                            &nbsp;|&nbsp; Trader payout: {gen_result.payout_rate}% &nbsp;|&nbsp; Final
+                                            balance: <strong>${Number(gen_result.final_balance).toFixed(2)}</strong>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
+
+                    {/* Profiles list */}
+                    {tp_loading ? (
+                        <p style={{ color: '#aaa' }}>Loading…</p>
+                    ) : trader_profiles.length === 0 ? (
+                        <p style={{ color: '#aaa' }}>No trader profiles yet. Create one above.</p>
+                    ) : (
+                        <table className='dpa-admin__table'>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Masked ID</th>
+                                    <th>Type</th>
+                                    <th>Balance</th>
+                                    <th>Trades</th>
+                                    <th>Win Rate</th>
+                                    <th>Market</th>
+                                    <th>Visible</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {trader_profiles.map((p: any) => (
+                                    <tr key={p.id}>
+                                        <td style={{ fontWeight: 600 }}>{p.display_name}</td>
+                                        <td style={{ fontFamily: 'monospace', color: '#888' }}>{p.masked_id}</td>
+                                        <td>
+                                            <span
+                                                style={{
+                                                    fontSize: 11,
+                                                    fontWeight: 600,
+                                                    padding: '2px 8px',
+                                                    borderRadius: 20,
+                                                    background:
+                                                        p.account_type === 'funded'
+                                                            ? '#e3f2fd'
+                                                            : p.account_type === 'real'
+                                                              ? '#e6f4ea'
+                                                              : '#fff8e1',
+                                                    color:
+                                                        p.account_type === 'funded'
+                                                            ? '#1976d2'
+                                                            : p.account_type === 'real'
+                                                              ? '#16a534'
+                                                              : '#f59e0b',
+                                                }}
+                                            >
+                                                {p.account_type}
+                                            </span>
+                                        </td>
+                                        <td>${Number(p.current_balance).toFixed(2)}</td>
+                                        <td>{p.total_trades}</td>
+                                        <td>{p.win_rate}%</td>
+                                        <td style={{ fontSize: 12 }}>{p.market_traded}</td>
+                                        <td style={{ fontSize: 12 }}>
+                                            {p.show_on_leaderboard && <span style={{ color: '#00a79e' }}>LB </span>}
+                                            {p.show_on_free_bots && <span style={{ color: '#f59e0b' }}>FB</span>}
+                                        </td>
+                                        <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                            <button
+                                                className='dpa-admin__btn'
+                                                style={{ background: '#00a79e', padding: '4px 10px', fontSize: 12 }}
+                                                onClick={() => {
+                                                    setGenProfileId(p.id);
+                                                    setGenForm((f: any) => ({
+                                                        ...f,
+                                                        bot_used: p.bot_used || '',
+                                                        market: p.market_traded || 'Volatility 100',
+                                                    }));
+                                                    setGenResult(null);
+                                                }}
+                                            >
+                                                Generate Trades
+                                            </button>
+                                            <button
+                                                className='dpa-admin__btn'
+                                                style={{ background: '#1565c0', padding: '4px 10px', fontSize: 12 }}
+                                                onClick={() => {
+                                                    setTpEditId(p.id);
+                                                    setTpForm({
+                                                        display_name: p.display_name,
+                                                        masked_id: p.masked_id,
+                                                        deriv_loginid: p.deriv_loginid || '',
+                                                        country: p.country,
+                                                        account_type: p.account_type,
+                                                        current_balance: String(p.current_balance),
+                                                        start_balance: String(p.start_balance),
+                                                        bot_used: p.bot_used,
+                                                        market_traded: p.market_traded,
+                                                        total_trades: String(p.total_trades),
+                                                        winning_trades: String(p.winning_trades),
+                                                        show_on_leaderboard: p.show_on_leaderboard,
+                                                        show_on_free_bots: p.show_on_free_bots,
+                                                    });
+                                                }}
+                                            >
+                                                Edit
+                                            </button>
+                                            <button
+                                                className='dpa-admin__btn'
+                                                style={{ background: '#c62828', padding: '4px 10px', fontSize: 12 }}
+                                                onClick={() => deleteTraderProfile(p.id)}
                                             >
                                                 Delete
                                             </button>

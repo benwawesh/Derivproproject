@@ -3,29 +3,66 @@ import { useStore } from '@deriv/stores';
 import {
     MarketAnalysisService,
     ALL_MARKETS,
+    ENSEMBLE_KEYS,
     type MarketResult,
     type BestMarket,
     type ConnectionStatus,
     type DeepScanResult,
     type AdvancedMetrics,
+    type MLPrediction,
+    type EnsembleKey,
 } from './MarketAnalysisService';
+import { ENSEMBLE_LABELS } from './MarketAnalysisMLEngine';
 import './MarketAnalysisTool.scss';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type SectionTab = 'rankings' | 'circles' | 'graphical' | 'deepscan';
+type SectionTab = 'rankings' | 'circles' | 'graphical' | 'deepscan' | 'aiscan' | 'ourec';
+
+interface AIScanCategoryScore {
+    label: string; // e.g. "Even/Odd"
+    score: number;
+    signalLabel: string; // e.g. "Odd (57.0%)"
+    confidence: string;
+}
+
+interface AIScanResult {
+    symbol: string;
+    name: string;
+    currentPrice: number;
+    rank: number;
+    masterScore: number;
+    formulaScore: number;
+    nnScore: number;
+    ensembleScore: number;
+    nnAccuracy: number;
+    trainingTicks: number;
+    bestFormulaLabel: string;
+    bestFormulaConfidence: string;
+    nnLabel: string;
+    ensembleLabel: string;
+    nnRiseLabel: string; // NN rise/fall prediction label
+    nnRiseScore: number; // NN rise/fall confidence (0–100)
+    agree: boolean;
+    // populated only in "all" mode — best signal per trade type category
+    categoryScores?: AIScanCategoryScore[];
+}
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
-const confidenceColor = (c: string) => (c === 'High' ? '#00e676' : c === 'Medium' ? '#ffb300' : '#ef5350');
+// Deriv brand palette
+const confidenceColor = (c: string) => (c === 'High' ? '#4bb543' : c === 'Medium' ? '#f0a500' : '#ff444f');
 
-const scoreColor = (score: number) => (score >= 65 ? '#00e676' : score >= 40 ? '#ffb300' : '#ef5350');
+const scoreColor = (score: number) => (score >= 65 ? '#4bb543' : score >= 40 ? '#f0a500' : '#ff444f');
+
+const masterColor = (s: number) => (s >= 65 ? '#2e7d32' : s >= 45 ? '#e65100' : '#c62828');
+const masterBg = (s: number) => (s >= 65 ? '#e8f5e9' : s >= 45 ? '#fff3e0' : '#ffebee');
 
 const fmt = (n: number, d = 3) => n.toFixed(d);
 
-// ─── Shared: pick best signal, respecting direction for over_under ────────────
-const pickBest = (r: MarketResult, filter: string, ouDir: 'over' | 'under' = 'over') => {
+// ─── Shared: pick best signal for a given trade type filter ──────────────────
+const pickBest = (r: MarketResult, filter: string) => {
     if (filter === 'over_under') {
-        const prefix = ouDir === 'under' ? 'Under' : 'Over';
-        return r.liveSignals.find(s => s.subType === 'over_under' && s.label.startsWith(prefix)) ?? r.liveSignals[0];
+        const ouSignals = r.liveSignals.filter(s => s.subType === 'over_under');
+        return ouSignals.sort((a, b) => b.score - a.score)[0] ?? r.liveSignals[0];
     }
     if (filter === 'all') return r.liveSignals[0];
     return r.liveSignals.find(s => s.subType === filter) ?? r.liveSignals[0];
@@ -36,16 +73,14 @@ const RankingsSection = ({
     results,
     onSelectMarket,
     tradeTypeFilter,
-    ouDirection,
 }: {
     results: MarketResult[];
     onSelectMarket: (symbol: string) => void;
     tradeTypeFilter: string;
-    ouDirection: 'over' | 'under';
 }) => {
     const sorted = [...results].sort((a, b) => {
-        const aScore = pickBest(a, tradeTypeFilter, ouDirection)?.score ?? 0;
-        const bScore = pickBest(b, tradeTypeFilter, ouDirection)?.score ?? 0;
+        const aScore = pickBest(a, tradeTypeFilter)?.score ?? 0;
+        const bScore = pickBest(b, tradeTypeFilter)?.score ?? 0;
         return bScore - aScore;
     });
 
@@ -64,7 +99,7 @@ const RankingsSection = ({
         <div className='mat__rankings'>
             <div className='mat__rankings-grid'>
                 {sorted.map((r, idx) => {
-                    const best = pickBest(r, tradeTypeFilter, ouDirection);
+                    const best = pickBest(r, tradeTypeFilter);
                     const score = best?.score ?? 0;
                     return (
                         <div
@@ -137,29 +172,126 @@ const RankingsSection = ({
 // ─── Circle Analysis section ──────────────────────────────────────────────────
 const TRADE_TYPE_OPTS = [
     { value: 'all', label: 'All Trade Types' },
-    { value: 'matches_differs', label: 'Matches / Differs' },
     { value: 'even_odd', label: 'Even / Odd' },
     { value: 'over_under', label: 'Over / Under' },
     { value: 'rise_fall', label: 'Rise / Fall' },
     { value: 'higher_lower', label: 'Higher / Lower' },
+    { value: 'neural_net', label: '🤖 Neural Network' },
+    { value: 'ensemble', label: '🎯 Ensemble AI' },
 ];
 
+// ─── ML Panel sub-component ───────────────────────────────────────────────────
+const MLPanel = ({ ml }: { ml: MLPrediction }) => {
+    const evenPct = ml.evenProb * 100;
+    const oddPct = (1 - ml.evenProb) * 100;
+    const ensEvenPct = ml.ensembleEvenProb * 100;
+    const ensOddPct = 100 - ensEvenPct;
+    const ensLabel = ml.ensembleEvenProb >= 0.5 ? 'Even' : 'Odd';
+    const totalW = (Object.values(ml.weights) as number[]).reduce((s, w) => s + w, 0);
+
+    return (
+        <div className='mat__ml-panel'>
+            <div className='mat__ml-panel__title'>🤖 Neural Network &amp; Ensemble AI</div>
+            <div className='mat__ml-panel__meta'>
+                <span>
+                    Trained on <b>{ml.trainingTicks.toLocaleString()}</b> ticks
+                </span>
+                <span>
+                    NN accuracy:{' '}
+                    <b
+                        style={{
+                            color: ml.nnAccuracy >= 0.55 ? '#00e676' : ml.nnAccuracy >= 0.52 ? '#ffb300' : '#ef5350',
+                        }}
+                    >
+                        {(ml.nnAccuracy * 100).toFixed(1)}%
+                    </b>
+                </span>
+            </div>
+
+            <div className='mat__ml-section-label'>Neural Network Prediction (Even / Odd)</div>
+            <div className='mat__ml-prob-row'>
+                <span className='mat__ml-prob-name'>Even</span>
+                <div className='mat__ml-bar-track'>
+                    <div className='mat__ml-bar-fill mat__ml-bar-fill--even' style={{ width: `${evenPct}%` }} />
+                </div>
+                <span className='mat__ml-prob-val'>{evenPct.toFixed(1)}%</span>
+            </div>
+            <div className='mat__ml-prob-row'>
+                <span className='mat__ml-prob-name'>Odd</span>
+                <div className='mat__ml-bar-track'>
+                    <div className='mat__ml-bar-fill mat__ml-bar-fill--odd' style={{ width: `${oddPct}%` }} />
+                </div>
+                <span className='mat__ml-prob-val'>{oddPct.toFixed(1)}%</span>
+            </div>
+
+            <div className='mat__ml-section-label'>
+                Ensemble Vote: <b style={{ color: '#9c6fff' }}>{ensLabel}</b> — {ml.ensembleEvenScore.toFixed(1)}%
+                confidence
+                {totalW === 0 && <span className='mat__ml-hint'> (calibrating — collecting accuracy data…)</span>}
+            </div>
+            <div className='mat__ml-prob-row'>
+                <span className='mat__ml-prob-name'>Even</span>
+                <div className='mat__ml-bar-track'>
+                    <div className='mat__ml-bar-fill mat__ml-bar-fill--ensemble' style={{ width: `${ensEvenPct}%` }} />
+                </div>
+                <span className='mat__ml-prob-val'>{ensEvenPct.toFixed(1)}%</span>
+            </div>
+            <div className='mat__ml-prob-row'>
+                <span className='mat__ml-prob-name'>Odd</span>
+                <div className='mat__ml-bar-track'>
+                    <div className='mat__ml-bar-fill mat__ml-bar-fill--ensemble' style={{ width: `${ensOddPct}%` }} />
+                </div>
+                <span className='mat__ml-prob-val'>{ensOddPct.toFixed(1)}%</span>
+            </div>
+
+            <div className='mat__ml-section-label'>Formula Weights (based on rolling accuracy)</div>
+            <div className='mat__ml-weights'>
+                {(ENSEMBLE_KEYS as readonly EnsembleKey[]).map(key => {
+                    const acc = ml.accuracies[key];
+                    const wt = ml.weights[key];
+                    const accColor = acc >= 0.55 ? '#00e676' : acc >= 0.52 ? '#ffb300' : '#ef5350';
+                    return (
+                        <div key={key} className='mat__ml-weight-row'>
+                            <span className='mat__ml-weight-label'>{ENSEMBLE_LABELS[key]}</span>
+                            <span className='mat__ml-weight-acc' style={{ color: accColor }}>
+                                {(acc * 100).toFixed(0)}%
+                            </span>
+                            <div className='mat__ml-weight-bar-track'>
+                                <div
+                                    className='mat__ml-weight-bar-fill'
+                                    style={{ width: `${Math.min(wt * 50, 100)}%`, background: accColor }}
+                                />
+                            </div>
+                            <span className='mat__ml-weight-val'>{wt.toFixed(2)}×</span>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
+// ─── Circle Analysis section ──────────────────────────────────────────────────
 const CirclesSection = ({
     results,
     selectedSymbol,
     onSymbolChange,
     tradeTypeFilter,
     onTradeTypeChange,
-    barrier,
-    ouDirection,
+    overBarrier,
+    underBarrier,
+    overEnabled,
+    underEnabled,
 }: {
     results: MarketResult[];
     selectedSymbol: string;
     onSymbolChange: (s: string) => void;
     tradeTypeFilter: string;
     onTradeTypeChange: (t: string) => void;
-    barrier: number;
-    ouDirection: 'over' | 'under';
+    overBarrier: number;
+    underBarrier: number;
+    overEnabled: boolean;
+    underEnabled: boolean;
 }) => {
     const result = results.find(r => r.symbol === selectedSymbol) ?? results[0];
 
@@ -182,13 +314,8 @@ const CirclesSection = ({
     const currentDigit =
         result.currentPrice > 0 ? parseInt(result.currentPrice.toString().replace('.', '').slice(-1)) : -1;
 
-    const ouPrefix = ouDirection === 'under' ? 'Under' : 'Over';
     const filteredSignals =
-        tradeTypeFilter === 'all'
-            ? result.liveSignals
-            : tradeTypeFilter === 'over_under'
-              ? result.liveSignals.filter(s => s.subType === 'over_under' && s.label.startsWith(ouPrefix))
-              : result.liveSignals.filter(s => s.subType === tradeTypeFilter);
+        tradeTypeFilter === 'all' ? result.liveSignals : result.liveSignals.filter(s => s.subType === tradeTypeFilter);
 
     return (
         <div className='mat__circles-section'>
@@ -203,7 +330,7 @@ const CirclesSection = ({
                     >
                         {results.map(r => (
                             <option key={r.symbol} value={r.symbol}>
-                                {r.symbol} — {r.name}
+                                {r.name}
                             </option>
                         ))}
                     </select>
@@ -262,40 +389,53 @@ const CirclesSection = ({
                         {/* Stat boxes */}
                         {dir &&
                             (() => {
-                                // Compute over/under from raw digit counts using the custom barrier
-                                const overCount = ds.counts.slice(barrier + 1).reduce((s, c) => s + c, 0);
-                                const underCount = ds.counts.slice(0, barrier).reduce((s, c) => s + c, 0);
+                                const overCount = ds.counts.slice(overBarrier + 1).reduce((s, c) => s + c, 0);
+                                const underCount = ds.counts.slice(0, underBarrier).reduce((s, c) => s + c, 0);
                                 const overPct = ds.total > 0 ? (overCount / ds.total) * 100 : 0;
                                 const underPct = ds.total > 0 ? (underCount / ds.total) * 100 : 0;
-                                const ouLabel = ouDirection === 'under' ? `UNDER ${barrier}` : `OVER ${barrier}`;
-                                const ouPct = ouDirection === 'under' ? underPct : overPct;
-                                const ouExpected =
-                                    ouDirection === 'under' ? (barrier / 10) * 100 : ((9 - barrier) / 10) * 100;
+                                const overExpected = ((9 - overBarrier) / 10) * 100;
+                                const underExpected = (underBarrier / 10) * 100;
+                                const statBoxes = [
+                                    {
+                                        label: 'EVEN',
+                                        pct: ds.evenPercentage,
+                                        dominant: ds.evenPercentage >= ds.oddPercentage,
+                                        show: true,
+                                    },
+                                    {
+                                        label: 'ODD',
+                                        pct: ds.oddPercentage,
+                                        dominant: ds.oddPercentage > ds.evenPercentage,
+                                        show: true,
+                                    },
+                                    {
+                                        label: 'RISE',
+                                        pct: dir.upPercentage,
+                                        dominant: dir.upPercentage >= dir.downPercentage,
+                                        show: true,
+                                    },
+                                    {
+                                        label: 'FALL',
+                                        pct: dir.downPercentage,
+                                        dominant: dir.downPercentage > dir.upPercentage,
+                                        show: true,
+                                    },
+                                    {
+                                        label: `OVER ${overBarrier}`,
+                                        pct: overPct,
+                                        dominant: overPct >= overExpected,
+                                        show: overEnabled,
+                                    },
+                                    {
+                                        label: `UNDER ${underBarrier}`,
+                                        pct: underPct,
+                                        dominant: underPct >= underExpected,
+                                        show: underEnabled,
+                                    },
+                                ].filter(b => b.show);
                                 return (
                                     <div className='mat__stat-boxes'>
-                                        {[
-                                            {
-                                                label: 'EVEN',
-                                                pct: ds.evenPercentage,
-                                                dominant: ds.evenPercentage >= ds.oddPercentage,
-                                            },
-                                            {
-                                                label: 'ODD',
-                                                pct: ds.oddPercentage,
-                                                dominant: ds.oddPercentage > ds.evenPercentage,
-                                            },
-                                            {
-                                                label: 'RISE',
-                                                pct: dir.upPercentage,
-                                                dominant: dir.upPercentage >= dir.downPercentage,
-                                            },
-                                            {
-                                                label: 'FALL',
-                                                pct: dir.downPercentage,
-                                                dominant: dir.downPercentage > dir.upPercentage,
-                                            },
-                                            { label: ouLabel, pct: ouPct, dominant: ouPct >= ouExpected },
-                                        ].map(({ label, pct, dominant }) => (
+                                        {statBoxes.map(({ label, pct, dominant }) => (
                                             <div
                                                 key={label}
                                                 className={`mat__stat-box ${dominant ? 'mat__stat-box--green' : 'mat__stat-box--red'}`}
@@ -357,6 +497,11 @@ const CirclesSection = ({
                             ))
                         )}
                     </div>
+
+                    {/* ML Panel — shown when NN has trained on ≥30 ticks */}
+                    {result.mlPrediction && result.mlPrediction.trainingTicks >= 30 && (
+                        <MLPanel ml={result.mlPrediction} />
+                    )}
                 </>
             ) : (
                 <div className='mat__placeholder'>
@@ -373,16 +518,14 @@ const GraphicalSection = ({
     results,
     onSelectMarket,
     tradeTypeFilter,
-    ouDirection,
 }: {
     results: MarketResult[];
     onSelectMarket: (symbol: string) => void;
     tradeTypeFilter: string;
-    ouDirection: 'over' | 'under';
 }) => {
     const sorted = [...results].sort((a, b) => {
-        const aScore = pickBest(a, tradeTypeFilter, ouDirection)?.score ?? 0;
-        const bScore = pickBest(b, tradeTypeFilter, ouDirection)?.score ?? 0;
+        const aScore = pickBest(a, tradeTypeFilter)?.score ?? 0;
+        const bScore = pickBest(b, tradeTypeFilter)?.score ?? 0;
         return bScore - aScore;
     });
 
@@ -411,7 +554,7 @@ const GraphicalSection = ({
             {/* Market strength bars */}
             <div className='mat__graphical__bars'>
                 {sorted.map((r, idx) => {
-                    const best = pickBest(r, tradeTypeFilter, ouDirection);
+                    const best = pickBest(r, tradeTypeFilter);
                     const score = best?.score ?? 0;
                     const color = best ? confidenceColor(best.confidence) : '#2a2a2a';
                     const barWidth = (score / maxScore) * 100;
@@ -539,26 +682,40 @@ const METRIC_DEFS: { key: string; label: string; hint: string; format: (m: Advan
 const DeepScanSection = ({
     results,
     service,
-    barrier,
+    overBarrier,
+    underBarrier,
+    tradeTypeFilter,
 }: {
     results: MarketResult[];
     service: MarketAnalysisService | null;
-    barrier: number;
+    overBarrier: number;
+    underBarrier: number;
+    tradeTypeFilter: string;
 }) => {
     const [scanResults, setScanResults] = useState<DeepScanResult[] | null>(null);
     const [isScanning, setIsScanning] = useState(false);
+    const hasRanRef = useRef(false);
     const hasData = results.some(r => r.liveSignals.length > 0);
+    // Live ML predictions — updated every 2 s from the results ticker
+    const mlBySymbol = new Map(results.filter(r => r.mlPrediction).map(r => [r.symbol, r.mlPrediction!]));
 
     const runScan = () => {
         if (!service) return;
         setIsScanning(true);
-        // Brief async tick so React renders "Scanning…" before CPU-bound work starts
         setTimeout(() => {
-            const r = service.deepScanAll();
-            setScanResults(r);
+            setScanResults(service.deepScanAll());
+            hasRanRef.current = true;
             setIsScanning(false);
         }, 50);
     };
+
+    // Auto-refresh formula data when live results update (after first manual run)
+    useEffect(() => {
+        if (hasRanRef.current && service && !isScanning) {
+            setScanResults(service.deepScanAll());
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [results]);
 
     return (
         <div className='mat__deepscan'>
@@ -574,9 +731,9 @@ const DeepScanSection = ({
                     inflates scores by nature (9-in-10 base-rate advantage).
                 </p>
                 <div className='mat__deepscan__barrier-info'>
-                    Current Over/Under barrier:{' '}
+                    Current Over/Under barriers:{' '}
                     <b>
-                        Over {barrier} / Under {barrier}
+                        Over {overBarrier} / Under {underBarrier}
                     </b>
                     <span className='mat__deepscan__barrier-hint'>
                         {' '}
@@ -605,91 +762,1124 @@ const DeepScanSection = ({
                             <p>No markets have enough data yet. Collect at least 50 ticks per market first.</p>
                         </div>
                     ) : (
-                        scanResults.map(r => (
-                            <div key={r.symbol} className='mat__deepscan__card'>
-                                {/* Card header */}
-                                <div className='mat__deepscan__card-header'>
-                                    <span className='mat__deepscan__card-rank'>#{r.rank}</span>
-                                    <div className='mat__deepscan__card-market'>
-                                        <span className='mat__deepscan__card-symbol'>{r.symbol}</span>
-                                        <span className='mat__deepscan__card-name'>{r.name}</span>
-                                        <span className='mat__deepscan__card-price'>{fmt(r.currentPrice)}</span>
+                        scanResults.map(r => {
+                            const ml = mlBySymbol.get(r.symbol);
+                            return (
+                                <div key={r.symbol} className='mat__deepscan__card'>
+                                    {/* Card header */}
+                                    <div className='mat__deepscan__card-header'>
+                                        <span className='mat__deepscan__card-rank'>#{r.rank}</span>
+                                        <div className='mat__deepscan__card-market'>
+                                            <span className='mat__deepscan__card-name'>{r.name}</span>
+                                            <span className='mat__deepscan__card-price'>{fmt(r.currentPrice)}</span>
+                                        </div>
+                                        <div className='mat__deepscan__best'>
+                                            <span
+                                                className='mat__conf-badge'
+                                                style={{ background: confidenceColor(r.bestSignal.confidence) }}
+                                            >
+                                                {r.bestSignal.confidence}
+                                            </span>
+                                            <span className='mat__deepscan__best-label'>{r.bestSignal.label}</span>
+                                            <span
+                                                className='mat__deepscan__best-score'
+                                                style={{ color: scoreColor(r.bestSignal.score) }}
+                                            >
+                                                {r.bestSignal.score.toFixed(1)}%
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div className='mat__deepscan__best'>
+
+                                    {/* Plain English explanation */}
+                                    <div className='mat__deepscan__explanation'>{r.bestSignal.explanation}</div>
+
+                                    {/* Signal scores — filtered to selected trade type */}
+                                    <div className='mat__deepscan__all-signals'>
+                                        <div className='mat__deepscan__signals-title'>
+                                            {tradeTypeFilter === 'all'
+                                                ? 'All Trade Type Signals:'
+                                                : `${TRADE_TYPE_OPTS.find(o => o.value === tradeTypeFilter)?.label ?? ''} Signals:`}
+                                        </div>
+                                        <div className='mat__deepscan__signals-list'>
+                                            {(tradeTypeFilter === 'all'
+                                                ? r.allSignals.filter(s => s.subType !== 'matches_differs')
+                                                : r.allSignals.filter(s => s.subType === tradeTypeFilter).length > 0
+                                                  ? r.allSignals.filter(s => s.subType === tradeTypeFilter)
+                                                  : r.allSignals.filter(s => s.subType !== 'matches_differs')
+                                            ).map((s, i) => (
+                                                <div key={i} className='mat__deepscan__sig-row'>
+                                                    <span
+                                                        className='mat__conf-badge mat__conf-badge--sm'
+                                                        style={{ background: confidenceColor(s.confidence) }}
+                                                    >
+                                                        {s.confidence}
+                                                    </span>
+                                                    <span className='mat__deepscan__sig-label'>{s.label}</span>
+                                                    <div className='mat__deepscan__sig-bar-track'>
+                                                        <div
+                                                            className='mat__deepscan__sig-bar-fill'
+                                                            style={{
+                                                                width: `${s.score}%`,
+                                                                background: confidenceColor(s.confidence),
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <span
+                                                        className='mat__deepscan__sig-score'
+                                                        style={{ color: scoreColor(s.score) }}
+                                                    >
+                                                        {s.score.toFixed(1)}%
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Formula breakdown — collapsible */}
+                                    <details className='mat__deepscan__metrics-details'>
+                                        <summary className='mat__deepscan__metrics-summary'>
+                                            Formula Breakdown (9 metrics)
+                                        </summary>
+                                        <div className='mat__deepscan__metrics-grid'>
+                                            {METRIC_DEFS.map(def => (
+                                                <div key={def.key} className='mat__deepscan__metric'>
+                                                    <div className='mat__deepscan__metric-label'>{def.label}</div>
+                                                    <div className='mat__deepscan__metric-value'>
+                                                        {def.format(r.metrics)}
+                                                    </div>
+                                                    <div className='mat__deepscan__metric-hint'>{def.hint}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </details>
+
+                                    {/* AI Prediction — all trade types ranked by confidence */}
+                                    {ml &&
+                                        ml.trainingTicks >= 30 &&
+                                        (() => {
+                                            const rows = [
+                                                { label: 'NN Even', value: ml.evenProb * 100, color: '#4bb4b3' },
+                                                { label: 'NN Odd', value: (1 - ml.evenProb) * 100, color: '#ff444f' },
+                                                { label: 'NN Rise', value: ml.riseProb * 100, color: '#4bb543' },
+                                                { label: 'NN Fall', value: (1 - ml.riseProb) * 100, color: '#f06292' },
+                                                {
+                                                    label: 'Ensemble',
+                                                    value: ml.ensembleEvenScore,
+                                                    color: '#f0a500',
+                                                    valLabel: `${ml.ensembleEvenProb >= 0.5 ? 'Even' : 'Odd'} ${ml.ensembleEvenScore.toFixed(1)}%`,
+                                                },
+                                            ].sort((a, b) => b.value - a.value);
+                                            return (
+                                                <div className='mat__deepscan__ml'>
+                                                    <div className='mat__deepscan__ml-title'>
+                                                        🤖 AI Prediction — {r.name}
+                                                    </div>
+                                                    {rows.map(row => (
+                                                        <div key={row.label} className='mat__deepscan__ml-row'>
+                                                            <span className='mat__deepscan__ml-label'>{row.label}</span>
+                                                            <div className='mat__deepscan__ml-bar-track'>
+                                                                <div
+                                                                    className='mat__deepscan__ml-bar-fill'
+                                                                    style={{
+                                                                        width: `${row.value}%`,
+                                                                        background: row.color,
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                            <span
+                                                                className='mat__deepscan__ml-val'
+                                                                style={{
+                                                                    color: (row as any).valLabel
+                                                                        ? row.color
+                                                                        : undefined,
+                                                                }}
+                                                            >
+                                                                {(row as any).valLabel ?? `${row.value.toFixed(1)}%`}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                    <div className='mat__deepscan__ml-meta'>
+                                                        NN accuracy: {(ml.nnAccuracy * 100).toFixed(1)}% · Trained on{' '}
+                                                        {ml.trainingTicks.toLocaleString()} ticks
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ─── AI Scan: compute master scores ──────────────────────────────────────────
+function computeAIScan(results: MarketResult[], tradeTypeFilter: string): AIScanResult[] {
+    const out: AIScanResult[] = [];
+
+    const isRiseFall = tradeTypeFilter === 'rise_fall' || tradeTypeFilter === 'higher_lower';
+    const isOverUnder = tradeTypeFilter === 'over_under';
+
+    // Category definitions for "all" mode
+    const ALL_CATS = [
+        { key: 'even_odd', label: 'Even / Odd' },
+        { key: 'over_under', label: 'Over / Under' },
+        { key: 'rise_fall', label: 'Rise / Fall' },
+        { key: 'higher_lower', label: 'Higher / Lower' },
+    ];
+
+    for (const r of results) {
+        const ml = r.mlPrediction;
+        if (!ml || ml.trainingTicks < 50) continue;
+
+        // Always exclude matches_differs and AI subtypes
+        const nonAISigs = r.liveSignals.filter(
+            s => s.subType !== 'neural_net' && s.subType !== 'ensemble' && s.subType !== 'matches_differs'
+        );
+
+        // ── NN predictions (always computed) ─────────────────────────────────
+        const nnEvenConf = Math.max(ml.evenProb, 1 - ml.evenProb) * 100;
+        const nnRiseConf = Math.max(ml.riseProb, 1 - ml.riseProb) * 100;
+        const nnEvenLabel =
+            ml.evenProb >= 0.5
+                ? `Even (${(ml.evenProb * 100).toFixed(1)}%)`
+                : `Odd (${((1 - ml.evenProb) * 100).toFixed(1)}%)`;
+        const nnRiseLabel =
+            ml.riseProb >= 0.5
+                ? `Rise (${(ml.riseProb * 100).toFixed(1)}%)`
+                : `Fall (${((1 - ml.riseProb) * 100).toFixed(1)}%)`;
+        const ensembleLabel =
+            ml.ensembleEvenProb >= 0.5
+                ? `Even (${ml.ensembleEvenScore.toFixed(1)}%)`
+                : `Odd (${ml.ensembleEvenScore.toFixed(1)}%)`;
+        const nnWeight = Math.min(1, Math.max(0, (ml.nnAccuracy - 0.5) / 0.15));
+
+        // ── ALL TRADE TYPES mode: show best from each category ────────────────
+        if (tradeTypeFilter === 'all') {
+            const categoryScores: AIScanCategoryScore[] = [];
+            const catFormulaScores: number[] = [];
+
+            for (const cat of ALL_CATS) {
+                const sigs = nonAISigs.filter(s => s.subType === cat.key);
+                const best = sigs[0];
+                const score = best?.score ?? 0;
+                if (score > 0) {
+                    categoryScores.push({
+                        label: cat.label,
+                        score,
+                        signalLabel: best?.label ?? '—',
+                        confidence: best?.confidence ?? 'Low',
+                    });
+                    catFormulaScores.push(score);
+                }
+            }
+
+            // Formula score = average across all categories with data
+            const avgFormula =
+                catFormulaScores.length > 0 ? catFormulaScores.reduce((a, b) => a + b, 0) / catFormulaScores.length : 0;
+
+            // AI: average of even/odd NN + rise/fall NN + ensemble (all equally relevant)
+            const nnAvg = (nnEvenConf + nnRiseConf) / 2;
+            const aiComponent = (ml.ensembleEvenScore * 0.4 + nnAvg * 0.6) * (0.4 + nnWeight * 0.6);
+            const masterScore = Math.min(100, avgFormula * 0.55 + aiComponent * 0.45);
+
+            // Best individual signal for reference
+            const bestFormula = nonAISigs[0];
+
+            out.push({
+                symbol: r.symbol,
+                name: r.name,
+                currentPrice: r.currentPrice,
+                rank: 0,
+                masterScore,
+                formulaScore: avgFormula,
+                nnScore: nnEvenConf,
+                nnRiseScore: nnRiseConf,
+                ensembleScore: ml.ensembleEvenScore,
+                nnAccuracy: ml.nnAccuracy,
+                trainingTicks: ml.trainingTicks,
+                bestFormulaLabel: bestFormula?.label ?? '—',
+                bestFormulaConfidence: bestFormula?.confidence ?? 'Low',
+                nnLabel: nnEvenLabel,
+                nnRiseLabel,
+                ensembleLabel,
+                agree: false,
+                categoryScores,
+            });
+            continue;
+        }
+
+        // ── SPECIFIC TRADE TYPE mode ──────────────────────────────────────────
+        const typedSigs = nonAISigs.filter(s => s.subType === tradeTypeFilter);
+        const formulaSigs = typedSigs.length > 0 ? typedSigs : nonAISigs;
+        const bestFormula = formulaSigs[0];
+        const formulaScore = bestFormula?.score ?? 0;
+
+        const nnProb = isRiseFall ? ml.riseProb : ml.evenProb;
+        const nnConfidence = Math.max(nnProb, 1 - nnProb) * 100;
+        const nnLabel = isRiseFall
+            ? nnRiseLabel
+            : isOverUnder
+              ? `Digit bias: ${nnProb >= 0.5 ? 'Even' : 'Odd'} (${nnConfidence.toFixed(1)}%)`
+              : nnEvenLabel;
+
+        const ensembleScore = isRiseFall ? 50 : ml.ensembleEvenScore;
+        const ensLbl = isRiseFall
+            ? '— (N/A for Rise/Fall)'
+            : isOverUnder
+              ? `Digit pattern: ${ml.ensembleEvenProb >= 0.5 ? 'Even' : 'Odd'} (${ml.ensembleEvenScore.toFixed(1)}%)`
+              : ensembleLabel;
+
+        let masterScore: number;
+        if (isRiseFall) {
+            masterScore = Math.min(100, formulaScore * 0.6 + nnConfidence * (0.4 + nnWeight * 0.6) * 0.4);
+        } else if (isOverUnder) {
+            const aiComponent = (ensembleScore * 0.55 + nnConfidence * 0.45) * (0.4 + nnWeight * 0.6);
+            masterScore = Math.min(100, formulaScore * 0.65 + aiComponent * 0.35);
+        } else {
+            const aiComponent = (ensembleScore * 0.55 + nnConfidence * 0.45) * (0.4 + nnWeight * 0.6);
+            masterScore = Math.min(100, formulaScore * 0.45 + aiComponent * 0.55);
+        }
+
+        let agree = false;
+        if (bestFormula) {
+            const lbl = bestFormula.label.toLowerCase();
+            if (isRiseFall) {
+                agree = (lbl.startsWith('rise') || lbl.startsWith('higher')) === nnProb >= 0.5;
+            } else if (!isOverUnder) {
+                const formulaEven = lbl.startsWith('even');
+                agree = formulaEven === nnProb >= 0.5 && formulaEven === ml.ensembleEvenProb >= 0.5;
+            }
+        }
+
+        out.push({
+            symbol: r.symbol,
+            name: r.name,
+            currentPrice: r.currentPrice,
+            rank: 0,
+            masterScore,
+            formulaScore,
+            nnScore: nnConfidence,
+            nnRiseScore: nnRiseConf,
+            ensembleScore: isRiseFall ? 0 : ensembleScore,
+            nnAccuracy: ml.nnAccuracy,
+            trainingTicks: ml.trainingTicks,
+            bestFormulaLabel: bestFormula?.label ?? '—',
+            bestFormulaConfidence: bestFormula?.confidence ?? 'Low',
+            nnLabel,
+            nnRiseLabel,
+            ensembleLabel: ensLbl,
+            agree,
+        });
+    }
+
+    out.sort((a, b) => b.masterScore - a.masterScore);
+    out.forEach((r, i) => {
+        r.rank = i + 1;
+    });
+    return out;
+}
+
+// ─── AI Scan section component ────────────────────────────────────────────────
+const AIScanSection = ({ results, tradeTypeFilter }: { results: MarketResult[]; tradeTypeFilter: string }) => {
+    const [scanResults, setScanResults] = useState<AIScanResult[]>([]);
+    const [hasRun, setHasRun] = useState(false);
+    const [isScanning, setIsScanning] = useState(false);
+    const prevFilterRef = useRef(tradeTypeFilter);
+
+    // Reset results when the trade type filter changes — old results would be for the wrong type
+    useEffect(() => {
+        if (prevFilterRef.current !== tradeTypeFilter) {
+            prevFilterRef.current = tradeTypeFilter;
+            setScanResults([]);
+            setHasRun(false);
+        }
+    }, [tradeTypeFilter]);
+
+    // Auto-refresh when market results update (after first run)
+    useEffect(() => {
+        if (hasRun) {
+            setScanResults(computeAIScan(results, tradeTypeFilter));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [results]);
+
+    const runScan = () => {
+        setIsScanning(true);
+        setTimeout(() => {
+            setScanResults(computeAIScan(results, tradeTypeFilter));
+            setHasRun(true);
+            setIsScanning(false);
+        }, 60);
+    };
+
+    const eligibleCount = results.filter(r => r.mlPrediction && r.mlPrediction.trainingTicks >= 50).length;
+    const hasEnough = eligibleCount > 0;
+
+    // masterColor / masterBg are module-level — see below AIScanSection
+
+    const isRiseFall = tradeTypeFilter === 'rise_fall' || tradeTypeFilter === 'higher_lower';
+    const isOverUnder = tradeTypeFilter === 'over_under';
+    const formulaNote = isRiseFall
+        ? '60% Formula strength + 40% Neural Network (Ensemble N/A for Rise/Fall)'
+        : isOverUnder
+          ? '65% Formula strength + 35% AI (Ensemble + NN as proxy) · scaled by NN accuracy'
+          : '45% Formula strength + 30% Ensemble AI + 25% Neural Network · scaled by NN accuracy';
+
+    const tradeTypeLabel = TRADE_TYPE_OPTS.find(o => o.value === tradeTypeFilter)?.label ?? 'All Trade Types';
+
+    return (
+        <div className='mat__aiscan'>
+            {/* Intro */}
+            <div className='mat__aiscan__intro'>
+                <h2 className='mat__aiscan__title'>🤖 AI Deep Scan — {tradeTypeLabel}</h2>
+                <p className='mat__aiscan__desc'>
+                    Combines <b>9 statistical formulas</b> with the <b>Neural Network</b> and <b>Ensemble AI</b> into
+                    one unified master score. Signals are filtered to <b>{tradeTypeLabel}</b> only — the scan ranks
+                    markets by how strongly that specific trade type is supported by both formulas and AI.
+                </p>
+                <div className='mat__aiscan__formula-note'>
+                    <b>Master Score</b> = {formulaNote}.
+                </div>
+                <div className='mat__aiscan__eligibility'>
+                    {eligibleCount} / {results.length} markets have enough AI training data (50+ ticks)
+                </div>
+                <button
+                    className={`mat__btn ${isScanning ? 'mat__btn--scanning' : 'mat__btn--scan'}`}
+                    onClick={runScan}
+                    disabled={isScanning || !hasEnough}
+                >
+                    {isScanning ? '⏳ Scanning…' : '🤖 Run AI Scan'}
+                </button>
+                {!hasEnough && (
+                    <p className='mat__aiscan__no-data'>
+                        Let the analysis run for at least 1 minute so the Neural Network can train on enough ticks.
+                    </p>
+                )}
+            </div>
+
+            {/* Results */}
+            {hasRun && !isScanning && (
+                <div className='mat__aiscan__results'>
+                    {scanResults.length === 0 ? (
+                        <div className='mat__placeholder'>
+                            <p>No markets have enough AI training data yet. Wait for more ticks.</p>
+                        </div>
+                    ) : (
+                        scanResults.map(r => (
+                            <div key={r.symbol} className='mat__aiscan__card'>
+                                {/* Header */}
+                                <div className='mat__aiscan__card-header'>
+                                    <span className='mat__aiscan__rank'>#{r.rank}</span>
+                                    <div className='mat__aiscan__market'>
+                                        <span className='mat__aiscan__name'>{r.name}</span>
+                                        <span className='mat__aiscan__price'>{fmt(r.currentPrice)}</span>
+                                    </div>
+                                    {/* Master score badge */}
+                                    <div
+                                        className='mat__aiscan__master'
+                                        style={{
+                                            background: masterBg(r.masterScore),
+                                            borderColor: masterColor(r.masterScore),
+                                        }}
+                                    >
+                                        <span className='mat__aiscan__master-label'>Master Score</span>
                                         <span
-                                            className='mat__conf-badge'
-                                            style={{ background: confidenceColor(r.bestSignal.confidence) }}
+                                            className='mat__aiscan__master-val'
+                                            style={{ color: masterColor(r.masterScore) }}
                                         >
-                                            {r.bestSignal.confidence}
+                                            {r.masterScore.toFixed(1)}%
                                         </span>
-                                        <span className='mat__deepscan__best-label'>{r.bestSignal.label}</span>
-                                        <span
-                                            className='mat__deepscan__best-score'
-                                            style={{ color: scoreColor(r.bestSignal.score) }}
-                                        >
-                                            {r.bestSignal.score.toFixed(1)}%
-                                        </span>
+                                    </div>
+                                    {/* Agreement badge */}
+                                    <div
+                                        className={`mat__aiscan__agree ${r.agree ? 'mat__aiscan__agree--yes' : 'mat__aiscan__agree--no'}`}
+                                    >
+                                        {r.agree ? '✓ All agree' : '⚠ Mixed'}
                                     </div>
                                 </div>
 
-                                {/* Plain English explanation */}
-                                <div className='mat__deepscan__explanation'>{r.bestSignal.explanation}</div>
-
-                                {/* All signal scores */}
-                                <div className='mat__deepscan__all-signals'>
-                                    <div className='mat__deepscan__signals-title'>All Trade Type Signals:</div>
-                                    <div className='mat__deepscan__signals-list'>
-                                        {r.allSignals.map((s, i) => (
-                                            <div key={i} className='mat__deepscan__sig-row'>
-                                                <span
-                                                    className='mat__conf-badge mat__conf-badge--sm'
-                                                    style={{ background: confidenceColor(s.confidence) }}
-                                                >
-                                                    {s.confidence}
-                                                </span>
-                                                <span className='mat__deepscan__sig-label'>{s.label}</span>
-                                                <div className='mat__deepscan__sig-bar-track'>
+                                {/* Component scores */}
+                                <div className='mat__aiscan__components'>
+                                    {tradeTypeFilter === 'all' && r.categoryScores && r.categoryScores.length > 0 ? (
+                                        <>
+                                            {/* Per-category formula bars */}
+                                            {r.categoryScores.map((cat, ci) => {
+                                                const catColors = ['#1565c0', '#6a1b9a', '#2e7d32', '#b5451b'];
+                                                const c = catColors[ci % catColors.length];
+                                                return (
+                                                    <div key={cat.label} className='mat__aiscan__comp'>
+                                                        <div className='mat__aiscan__comp-header'>
+                                                            <span
+                                                                className='mat__aiscan__comp-label'
+                                                                style={{ color: c }}
+                                                            >
+                                                                {cat.label}
+                                                            </span>
+                                                            <span className='mat__aiscan__comp-signal'>
+                                                                {cat.signalLabel}
+                                                            </span>
+                                                            <span
+                                                                className='mat__aiscan__comp-val'
+                                                                style={{ color: c }}
+                                                            >
+                                                                {cat.score.toFixed(1)}%
+                                                            </span>
+                                                        </div>
+                                                        <div className='mat__aiscan__comp-track'>
+                                                            <div
+                                                                className='mat__aiscan__comp-fill'
+                                                                style={{ width: `${cat.score}%`, background: c }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                            {/* NN Even/Odd */}
+                                            <div className='mat__aiscan__comp'>
+                                                <div className='mat__aiscan__comp-header'>
+                                                    <span
+                                                        className='mat__aiscan__comp-label'
+                                                        style={{ color: '#6a1b9a' }}
+                                                    >
+                                                        NN Even/Odd
+                                                    </span>
+                                                    <span className='mat__aiscan__comp-signal'>{r.nnLabel}</span>
+                                                    <span
+                                                        className='mat__aiscan__comp-val'
+                                                        style={{ color: '#6a1b9a' }}
+                                                    >
+                                                        {r.nnScore.toFixed(1)}%
+                                                    </span>
+                                                </div>
+                                                <div className='mat__aiscan__comp-track'>
                                                     <div
-                                                        className='mat__deepscan__sig-bar-fill'
-                                                        style={{
-                                                            width: `${s.score}%`,
-                                                            background: confidenceColor(s.confidence),
-                                                        }}
+                                                        className='mat__aiscan__comp-fill'
+                                                        style={{ width: `${r.nnScore}%`, background: '#6a1b9a' }}
                                                     />
                                                 </div>
-                                                <span
-                                                    className='mat__deepscan__sig-score'
-                                                    style={{ color: scoreColor(s.score) }}
-                                                >
-                                                    {s.score.toFixed(1)}%
-                                                </span>
                                             </div>
-                                        ))}
-                                    </div>
+                                            {/* NN Rise/Fall */}
+                                            <div className='mat__aiscan__comp'>
+                                                <div className='mat__aiscan__comp-header'>
+                                                    <span
+                                                        className='mat__aiscan__comp-label'
+                                                        style={{ color: '#00838f' }}
+                                                    >
+                                                        NN Rise/Fall
+                                                    </span>
+                                                    <span className='mat__aiscan__comp-signal'>{r.nnRiseLabel}</span>
+                                                    <span
+                                                        className='mat__aiscan__comp-val'
+                                                        style={{ color: '#00838f' }}
+                                                    >
+                                                        {r.nnRiseScore.toFixed(1)}%
+                                                    </span>
+                                                </div>
+                                                <div className='mat__aiscan__comp-track'>
+                                                    <div
+                                                        className='mat__aiscan__comp-fill'
+                                                        style={{ width: `${r.nnRiseScore}%`, background: '#00838f' }}
+                                                    />
+                                                </div>
+                                            </div>
+                                            {/* Ensemble */}
+                                            <div className='mat__aiscan__comp'>
+                                                <div className='mat__aiscan__comp-header'>
+                                                    <span
+                                                        className='mat__aiscan__comp-label'
+                                                        style={{ color: '#00695c' }}
+                                                    >
+                                                        Ensemble AI
+                                                    </span>
+                                                    <span className='mat__aiscan__comp-signal'>{r.ensembleLabel}</span>
+                                                    <span
+                                                        className='mat__aiscan__comp-val'
+                                                        style={{ color: '#00695c' }}
+                                                    >
+                                                        {r.ensembleScore.toFixed(1)}%
+                                                    </span>
+                                                </div>
+                                                <div className='mat__aiscan__comp-track'>
+                                                    <div
+                                                        className='mat__aiscan__comp-fill'
+                                                        style={{ width: `${r.ensembleScore}%`, background: '#00695c' }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        [
+                                            {
+                                                label: isOverUnder
+                                                    ? 'Over/Under'
+                                                    : isRiseFall
+                                                      ? 'Rise/Fall'
+                                                      : '9 Formulas',
+                                                value: r.formulaScore,
+                                                signal: r.bestFormulaLabel,
+                                                color: '#1565c0',
+                                                na: false,
+                                            },
+                                            {
+                                                label: isOverUnder ? 'Digit Dist.' : 'Neural Net',
+                                                value: r.nnScore,
+                                                signal: r.nnLabel,
+                                                color: '#6a1b9a',
+                                                na: false,
+                                            },
+                                            {
+                                                label: isOverUnder ? 'Digit Pattern' : 'Ensemble AI',
+                                                value: r.ensembleScore,
+                                                signal: r.ensembleLabel,
+                                                color: '#00695c',
+                                                na: isRiseFall,
+                                            },
+                                        ].map(({ label, value, signal, color, na }) => (
+                                            <div
+                                                key={label}
+                                                className={`mat__aiscan__comp${na ? ' mat__aiscan__comp--na' : ''}`}
+                                            >
+                                                <div className='mat__aiscan__comp-header'>
+                                                    <span
+                                                        className='mat__aiscan__comp-label'
+                                                        style={{ color: na ? '#aaa' : color }}
+                                                    >
+                                                        {label}
+                                                    </span>
+                                                    <span className='mat__aiscan__comp-signal'>
+                                                        {na ? 'N/A' : signal}
+                                                    </span>
+                                                    <span
+                                                        className='mat__aiscan__comp-val'
+                                                        style={{ color: na ? '#aaa' : color }}
+                                                    >
+                                                        {na ? '—' : `${value.toFixed(1)}%`}
+                                                    </span>
+                                                </div>
+                                                <div className='mat__aiscan__comp-track'>
+                                                    {!na && (
+                                                        <div
+                                                            className='mat__aiscan__comp-fill'
+                                                            style={{ width: `${value}%`, background: color }}
+                                                        />
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
                                 </div>
 
-                                {/* Formula breakdown — collapsible */}
-                                <details className='mat__deepscan__metrics-details'>
-                                    <summary className='mat__deepscan__metrics-summary'>
-                                        Formula Breakdown (9 metrics)
-                                    </summary>
-                                    <div className='mat__deepscan__metrics-grid'>
-                                        {METRIC_DEFS.map(def => (
-                                            <div key={def.key} className='mat__deepscan__metric'>
-                                                <div className='mat__deepscan__metric-label'>{def.label}</div>
-                                                <div className='mat__deepscan__metric-value'>
-                                                    {def.format(r.metrics)}
-                                                </div>
-                                                <div className='mat__deepscan__metric-hint'>{def.hint}</div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </details>
+                                {/* NN meta */}
+                                <div className='mat__aiscan__meta'>
+                                    NN accuracy:{' '}
+                                    <b
+                                        style={{
+                                            color:
+                                                r.nnAccuracy >= 0.55
+                                                    ? '#2e7d32'
+                                                    : r.nnAccuracy >= 0.52
+                                                      ? '#e65100'
+                                                      : '#c62828',
+                                        }}
+                                    >
+                                        {(r.nnAccuracy * 100).toFixed(1)}%
+                                    </b>
+                                    &nbsp;· Trained on <b>{r.trainingTicks.toLocaleString()}</b> ticks
+                                </div>
                             </div>
                         ))
                     )}
                 </div>
             )}
+        </div>
+    );
+};
+
+// ─── Over/Under Recovery Scanner ─────────────────────────────────────────────
+
+// Valid barrier ranges — exclude low-payout extremes (Over 0/1, Under 8/9)
+const OU_OVER_MIN = 2;
+const OU_OVER_MAX = 7;
+const OU_UNDER_MIN = 2;
+const OU_UNDER_MAX = 7;
+
+interface OUBarrierScore {
+    type: 'over' | 'under';
+    barrier: number;
+    label: string;
+    hitRate: number; // actual % of recent digits that win
+    theoreticalRate: number; // purely statistical expected rate
+    edge: number; // hitRate − theoreticalRate
+    shortEdge: number; // edge over last ~20 ticks (recent trend)
+    windowAgree: boolean; // short-term and long-term edge agree in direction
+    payout: number; // total return multiplier (e.g. 1.90)
+    edgeScore: number; // composite 0–100
+}
+
+interface OURecoveryResult {
+    symbol: string;
+    name: string;
+    currentPrice: number;
+    rank: number;
+    sampleSize: number;
+    entry: OUBarrierScore;
+    recovery: OUBarrierScore | null; // null = no clean recovery available
+    recoveryStake: number;
+    stakeMultiplier: number; // recoveryStake / baseStake
+}
+
+// Deriv approximate payout: 0.95 / theoretical_probability, rounded to 2dp
+function ouPayout(type: 'over' | 'under', barrier: number): number {
+    const prob = type === 'over' ? (9 - barrier) / 10 : barrier / 10;
+    if (prob <= 0) return 0;
+    return Math.round((0.95 / prob) * 100) / 100;
+}
+
+// Compute wins for a barrier from a digit counts array
+function ouWins(type: 'over' | 'under', barrier: number, counts: number[]): number {
+    if (type === 'over') return counts.slice(barrier + 1).reduce((s, c) => s + c, 0);
+    return counts.slice(0, barrier).reduce((s, c) => s + c, 0);
+}
+
+// Smart composite edge score for a single barrier
+// Weights: edge significance (sample-adjusted) > short-term trend agreement > payout attractiveness
+function computeEdgeScore(
+    edge: number,
+    shortEdge: number,
+    windowAgree: boolean,
+    payout: number,
+    total: number
+): number {
+    if (edge <= 0) return 0; // never score a negative-edge barrier
+
+    // Sample-weighted significance: more ticks = more reliable edge
+    const sampleFactor = Math.min(1, Math.sqrt(total / 200)); // saturates at ~200 ticks
+    const weightedEdge = edge * sampleFactor;
+
+    // Short-term trend: if recent 20 ticks agree, add bonus; if they disagree, penalise
+    const trendBonus = shortEdge > 0 ? Math.min(shortEdge * 2, 15) : -10;
+
+    // Cross-window consistency bonus
+    const consistencyBonus = windowAgree ? 8 : 0;
+
+    // Payout attractiveness (favours barriers with better reward for similar edge)
+    // Scaled so Over 4/5 (1.9–2.4×) get a meaningful bonus without dominating
+    const payoutBonus = Math.min(12, (payout - 1.3) * 5);
+
+    const raw = weightedEdge * 5 + trendBonus + consistencyBonus + payoutBonus;
+    return Math.min(100, Math.max(0, raw));
+}
+
+// Score all valid Over/Under barriers for a market using two windows (long + short)
+function scoreValidBarriers(
+    longCounts: number[],
+    longTotal: number,
+    shortCounts: number[],
+    shortTotal: number
+): OUBarrierScore[] {
+    const scores: OUBarrierScore[] = [];
+
+    const assess = (type: 'over' | 'under', barrier: number) => {
+        const theoretical = type === 'over' ? ((9 - barrier) / 10) * 100 : (barrier / 10) * 100;
+        const payout = ouPayout(type, barrier);
+        if (payout <= 0) return;
+
+        const longWins = ouWins(type, barrier, longCounts);
+        const hitRate = (longWins / longTotal) * 100;
+        const edge = hitRate - theoretical;
+
+        // Short-term edge (recent ~20 ticks)
+        let shortEdge = 0;
+        if (shortTotal >= 10) {
+            const shortWins = ouWins(type, barrier, shortCounts);
+            shortEdge = (shortWins / shortTotal) * 100 - theoretical;
+        }
+
+        const windowAgree = edge > 0 && shortEdge > 0;
+        const edgeScore = computeEdgeScore(edge, shortEdge, windowAgree, payout, longTotal);
+
+        // Only include if it has a positive long-term edge
+        if (edge > 0) {
+            scores.push({
+                type,
+                barrier,
+                label: `${type === 'over' ? 'Over' : 'Under'} ${barrier}`,
+                hitRate,
+                theoreticalRate: theoretical,
+                edge,
+                shortEdge,
+                windowAgree,
+                payout,
+                edgeScore,
+            });
+        }
+    };
+
+    for (let b = OU_OVER_MIN; b <= OU_OVER_MAX; b++) assess('over', b);
+    for (let b = OU_UNDER_MIN; b <= OU_UNDER_MAX; b++) assess('under', b);
+
+    return scores.sort((a, b) => b.edgeScore - a.edgeScore);
+}
+
+function computeOURecovery(results: MarketResult[], baseStake: number): OURecoveryResult[] {
+    const out: OURecoveryResult[] = [];
+
+    for (const r of results) {
+        if (!r.windows || r.windows.length === 0) continue;
+
+        // Long window = largest available; short window = smallest available (~10–20T)
+        const longWin = r.windows[r.windows.length - 1];
+        const shortWin = r.windows[0];
+
+        if (!longWin.digitStats || longWin.digitStats.total < 30) continue;
+
+        const longCounts = longWin.digitStats.counts;
+        const longTotal = longWin.digitStats.total;
+        const shortCounts = shortWin?.digitStats?.counts ?? longCounts;
+        const shortTotal = shortWin?.digitStats?.total ?? 0;
+
+        const validBarriers = scoreValidBarriers(longCounts, longTotal, shortCounts, shortTotal);
+        if (validBarriers.length === 0) continue; // no positive-edge barrier exists
+
+        const entry = validBarriers[0];
+
+        // Recovery: best remaining barrier that:
+        // 1. Is different from entry
+        // 2. Has positive edge
+        // 3. Produces a stake multiplier ≤ 4× (keeps recovery sane)
+        // Recovery target = recover lost stake + the profit entry would have made
+        const entryTargetProfit = baseStake * (entry.payout - 1);
+        const needed = baseStake + entryTargetProfit;
+
+        let recovery: OUBarrierScore | null = null;
+        let recoveryStake = 0;
+        let stakeMultiplier = 0;
+
+        for (const candidate of validBarriers) {
+            if (candidate.label === entry.label) continue;
+            const netPerUnit = candidate.payout - 1;
+            const stakeNeeded = needed / netPerUnit;
+            const mult = stakeNeeded / baseStake;
+            if (mult <= 4) {
+                recovery = candidate;
+                recoveryStake = Math.ceil(stakeNeeded * 100) / 100;
+                stakeMultiplier = Math.round(mult * 10) / 10;
+                break;
+            }
+        }
+        // If no candidate within 4× multiplier, try up to 6× before giving up
+        if (!recovery) {
+            for (const candidate of validBarriers) {
+                if (candidate.label === entry.label) continue;
+                const netPerUnit = candidate.payout - 1;
+                const stakeNeeded = needed / netPerUnit;
+                const mult = stakeNeeded / baseStake;
+                if (mult <= 6) {
+                    recovery = candidate;
+                    recoveryStake = Math.ceil(stakeNeeded * 100) / 100;
+                    stakeMultiplier = Math.round(mult * 10) / 10;
+                    break;
+                }
+            }
+        }
+
+        out.push({
+            symbol: r.symbol,
+            name: r.name,
+            currentPrice: r.currentPrice,
+            rank: 0,
+            sampleSize: longTotal,
+            entry,
+            recovery,
+            recoveryStake,
+            stakeMultiplier,
+        });
+    }
+
+    out.sort((a, b) => b.entry.edgeScore - a.entry.edgeScore);
+    out.forEach((r, i) => {
+        r.rank = i + 1;
+    });
+    return out;
+}
+
+const edgeColor = (edge: number) => (edge >= 5 ? '#2e7d32' : edge >= 2 ? '#e65100' : '#c62828');
+const hitColor = (hit: number, theo: number) => (hit >= theo + 3 ? '#2e7d32' : hit >= theo ? '#e65100' : '#c62828');
+
+const OURecoverySection = ({ results }: { results: MarketResult[] }) => {
+    const [stake, setStake] = useState('1.00');
+    const [stakeVal, setStakeVal] = useState(1.0);
+    const [scanResults, setScanResults] = useState<OURecoveryResult[]>([]);
+    const [hasRun, setHasRun] = useState(false);
+    const [isScanning, setIsScanning] = useState(false);
+
+    // Auto-refresh when live results update (after first run)
+    const hasRunRef = useRef(false);
+    useEffect(() => {
+        if (hasRunRef.current && results.length > 0) {
+            setScanResults(computeOURecovery(results, stakeVal));
+        }
+    }, [results, stakeVal]);
+
+    const handleScan = () => {
+        setIsScanning(true);
+        setTimeout(() => {
+            setScanResults(computeOURecovery(results, stakeVal));
+            setHasRun(true);
+            hasRunRef.current = true;
+            setIsScanning(false);
+        }, 120);
+    };
+
+    return (
+        <div className='mat__aiscan'>
+            <div className='mat__aiscan__header'>
+                <div>
+                    <h3 className='mat__aiscan__title'>⚡ Over/Under Recovery Scanner</h3>
+                    <p className='mat__aiscan__desc'>
+                        Scans all Over and Under barriers across every market. Finds the strongest statistical edge as
+                        the entry, then picks the best recovery trade in case of a loss — direction and barrier are
+                        fully market-driven, nothing is hardcoded.
+                    </p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                    <label style={{ fontSize: 12, color: '#888' }}>Base Stake ($)</label>
+                    <input
+                        type='number'
+                        min='0.35'
+                        step='0.01'
+                        value={stake}
+                        onChange={e => {
+                            setStake(e.target.value);
+                            const n = parseFloat(e.target.value);
+                            if (!isNaN(n) && n > 0) setStakeVal(n);
+                        }}
+                        onBlur={() => {
+                            const n = parseFloat(stake);
+                            const safe = isNaN(n) || n <= 0 ? 1 : Math.round(n * 100) / 100;
+                            setStakeVal(safe);
+                            setStake(safe.toFixed(2));
+                        }}
+                        style={{
+                            width: 72,
+                            padding: '4px 6px',
+                            borderRadius: 5,
+                            border: '1px solid #ccc',
+                            fontSize: 13,
+                            textAlign: 'right',
+                        }}
+                    />
+                    <button
+                        className='mat__aiscan__run-btn'
+                        onClick={handleScan}
+                        disabled={isScanning || results.length === 0}
+                    >
+                        {isScanning ? '⏳ Scanning…' : hasRun ? '🔄 Re-Scan' : '▶ Run Scan'}
+                    </button>
+                </div>
+            </div>
+
+            {!hasRun && !isScanning && (
+                <div className='mat__placeholder'>
+                    <div className='mat__placeholder__icon'>⚡</div>
+                    <p>
+                        Click <b>Run Scan</b> to find the best Over/Under entry + recovery for every market.
+                    </p>
+                </div>
+            )}
+            {isScanning && (
+                <div className='mat__placeholder'>
+                    <p>Analysing all barriers across {results.length} markets…</p>
+                </div>
+            )}
+
+            {hasRun && !isScanning && (
+                <div className='mat__aiscan__results'>
+                    {scanResults.length === 0 ? (
+                        <div className='mat__placeholder'>
+                            <p>
+                                No markets have a positive statistical edge right now in the Over 2–7 / Under 2–7 range.
+                                Wait for more ticks or try again shortly.
+                            </p>
+                        </div>
+                    ) : (
+                        scanResults.map(r => {
+                            const entryProfit = (stakeVal * (r.entry.payout - 1)).toFixed(2);
+                            const recNetProfit = r.recovery
+                                ? (r.recoveryStake * (r.recovery.payout - 1) - stakeVal).toFixed(2)
+                                : null;
+                            return (
+                                <div key={r.symbol} className='mat__aiscan__card'>
+                                    {/* Header */}
+                                    <div className='mat__aiscan__card-header'>
+                                        <span className='mat__aiscan__rank'>#{r.rank}</span>
+                                        <div className='mat__aiscan__market'>
+                                            <span className='mat__aiscan__name'>{r.name}</span>
+                                            <span className='mat__aiscan__price'>{fmt(r.currentPrice)}</span>
+                                        </div>
+                                        <div
+                                            className='mat__aiscan__master'
+                                            style={{
+                                                background: masterBg(r.entry.edgeScore),
+                                                borderColor: masterColor(r.entry.edgeScore),
+                                            }}
+                                        >
+                                            <span className='mat__aiscan__master-label'>Edge Score</span>
+                                            <span
+                                                className='mat__aiscan__master-val'
+                                                style={{ color: masterColor(r.entry.edgeScore) }}
+                                            >
+                                                {r.entry.edgeScore.toFixed(0)}
+                                            </span>
+                                        </div>
+                                        <span style={{ fontSize: 11, color: '#aaa' }}>{r.sampleSize} ticks</span>
+                                    </div>
+
+                                    {/* Entry row */}
+                                    <div className='mat__ou-row mat__ou-row--entry'>
+                                        <div className='mat__ou-row__badge mat__ou-row__badge--entry'>ENTRY</div>
+                                        <div className='mat__ou-row__info'>
+                                            <span className='mat__ou-row__label'>{r.entry.label}</span>
+                                            <span className='mat__ou-row__stake'>${stakeVal.toFixed(2)}</span>
+                                            <span className='mat__ou-row__payout'>×{r.entry.payout.toFixed(2)}</span>
+                                            <span className='mat__ou-row__profit' style={{ color: '#2e7d32' }}>
+                                                +${entryProfit} if win
+                                            </span>
+                                            {r.entry.windowAgree && (
+                                                <span style={{ fontSize: 10, color: '#2e7d32', fontWeight: 700 }}>
+                                                    ✓ Trend confirmed
+                                                </span>
+                                            )}
+                                            {!r.entry.windowAgree && (
+                                                <span style={{ fontSize: 10, color: '#e65100' }}>
+                                                    ⚠ Short-term mixed
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className='mat__ou-row__stats'>
+                                            <span style={{ color: hitColor(r.entry.hitRate, r.entry.theoreticalRate) }}>
+                                                Hit: {r.entry.hitRate.toFixed(1)}%
+                                            </span>
+                                            <span style={{ color: '#aaa' }}>
+                                                (exp {r.entry.theoreticalRate.toFixed(0)}%)
+                                            </span>
+                                            <span style={{ color: edgeColor(r.entry.edge) }}>
+                                                Edge: +{r.entry.edge.toFixed(1)}%
+                                            </span>
+                                            {r.entry.shortEdge !== 0 && (
+                                                <span
+                                                    style={{
+                                                        color: r.entry.shortEdge > 0 ? '#2e7d32' : '#c62828',
+                                                        fontSize: 10,
+                                                    }}
+                                                >
+                                                    Recent: {r.entry.shortEdge >= 0 ? '+' : ''}
+                                                    {r.entry.shortEdge.toFixed(1)}%
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className='mat__ou-row__bar-wrap'>
+                                            <div
+                                                className='mat__ou-row__bar'
+                                                style={{
+                                                    width: `${Math.min(100, r.entry.hitRate)}%`,
+                                                    background: '#1565c0',
+                                                }}
+                                            />
+                                            <div
+                                                className='mat__ou-row__bar-theo'
+                                                style={{ left: `${r.entry.theoreticalRate}%` }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Recovery row */}
+                                    {r.recovery ? (
+                                        <>
+                                            <div className='mat__ou-row mat__ou-row--rec'>
+                                                <div className='mat__ou-row__badge mat__ou-row__badge--rec'>
+                                                    RECOVERY
+                                                </div>
+                                                <div className='mat__ou-row__info'>
+                                                    <span className='mat__ou-row__label'>{r.recovery.label}</span>
+                                                    <span className='mat__ou-row__stake'>
+                                                        ${r.recoveryStake.toFixed(2)}
+                                                    </span>
+                                                    <span className='mat__ou-row__payout'>
+                                                        ×{r.recovery.payout.toFixed(2)}
+                                                    </span>
+                                                    <span className='mat__ou-row__profit' style={{ color: '#f0a500' }}>
+                                                        +${recNetProfit} net
+                                                    </span>
+                                                    <span style={{ fontSize: 10, color: '#aaa' }}>
+                                                        ({r.stakeMultiplier}× stake)
+                                                    </span>
+                                                </div>
+                                                <div className='mat__ou-row__stats'>
+                                                    <span
+                                                        style={{
+                                                            color: hitColor(
+                                                                r.recovery.hitRate,
+                                                                r.recovery.theoreticalRate
+                                                            ),
+                                                        }}
+                                                    >
+                                                        Hit: {r.recovery.hitRate.toFixed(1)}%
+                                                    </span>
+                                                    <span style={{ color: '#aaa' }}>
+                                                        (exp {r.recovery.theoreticalRate.toFixed(0)}%)
+                                                    </span>
+                                                    <span style={{ color: edgeColor(r.recovery.edge) }}>
+                                                        Edge: +{r.recovery.edge.toFixed(1)}%
+                                                    </span>
+                                                </div>
+                                                <div className='mat__ou-row__bar-wrap'>
+                                                    <div
+                                                        className='mat__ou-row__bar'
+                                                        style={{
+                                                            width: `${Math.min(100, r.recovery.hitRate)}%`,
+                                                            background: '#6a1b9a',
+                                                        }}
+                                                    />
+                                                    <div
+                                                        className='mat__ou-row__bar-theo'
+                                                        style={{ left: `${r.recovery.theoreticalRate}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className='mat__aiscan__meta' style={{ marginTop: 4 }}>
+                                                If entry loses → <b>{r.recovery.label}</b> at{' '}
+                                                <b>${r.recoveryStake.toFixed(2)}</b> → 1 win covers loss + returns{' '}
+                                                <b style={{ color: '#f0a500' }}>${recNetProfit}</b> net profit
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className='mat__ou-row mat__ou-row--rec' style={{ opacity: 0.6 }}>
+                                            <div className='mat__ou-row__badge mat__ou-row__badge--rec'>RECOVERY</div>
+                                            <div className='mat__ou-row__info'>
+                                                <span style={{ fontSize: 12, color: '#c62828', fontWeight: 600 }}>
+                                                    ⚠ No clean recovery available — all other barriers either have no
+                                                    edge or require &gt;6× stake
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+            )}
+
+            <p style={{ fontSize: 11, color: '#aaa', marginTop: 8, padding: '0 4px' }}>
+                Valid range: Over 2–7 · Under 2–7. Entry = highest composite edge score across all valid barriers.
+                Recovery = best positive-edge barrier that covers loss + entry profit in one win (stake ≤ 6×). "Trend
+                confirmed" means both short-term (recent ~10 ticks) and long-term windows agree. For analysis only — not
+                financial advice.
+            </p>
         </div>
     );
 };
@@ -704,11 +1894,17 @@ export const MarketAnalysisTool = () => {
     const [results, setResults] = useState<MarketResult[]>([]);
     const [sectionTab, setSectionTab] = useState<SectionTab>('rankings');
     const [selectedSymbol, setSelectedSymbol] = useState('R_50');
-    const [barrier, setBarrier] = useState(4);
-    const [ouDirection, setOuDirection] = useState<'over' | 'under'>('over');
+    const [overBarrier, setOverBarrier] = useState(4);
+    const [underBarrier, setUnderBarrier] = useState(4);
+    const [overInput, setOverInput] = useState('4'); // raw string for the input field
+    const [underInput, setUnderInput] = useState('4'); // raw string for the input field
+    const [overEnabled, setOverEnabled] = useState(true);
+    const [underEnabled, setUnderEnabled] = useState(true);
     const [tradeTypeFilter, setTradeTypeFilter] = useState('all');
 
     const serviceRef = useRef<MarketAnalysisService | null>(null);
+    const latestResultsRef = useRef<MarketResult[]>([]);
+    const uiTickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const getToken = useCallback((c: any): string => {
         const fromStore = c.getToken?.();
@@ -732,25 +1928,35 @@ export const MarketAnalysisTool = () => {
         const token = getToken(client);
         if (!token) return;
         const svc = new MarketAnalysisService(token);
+        // Store results in a ref on every tick — no re-render per tick
         svc.setUpdateCallback((r: MarketResult[], _b: BestMarket | null) => {
-            setResults(r);
+            latestResultsRef.current = r;
         });
         svc.setStatusCallback((s: ConnectionStatus, msg?: string) => {
             setStatus(s);
             setStatusMsg(msg || '');
         });
-        svc.setBarrier(barrier);
+        svc.setBarriers(overBarrier, underBarrier);
         serviceRef.current = svc;
+
+        // Refresh UI at a steady 2-second interval — no flicker
+        uiTickerRef.current = setInterval(() => {
+            if (latestResultsRef.current.length > 0) {
+                setResults([...latestResultsRef.current]);
+            }
+        }, 2000);
+
         return () => {
             svc.disconnect();
+            if (uiTickerRef.current) clearInterval(uiTickerRef.current);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [client, getToken]);
 
-    // Sync barrier to service whenever user changes it
+    // Sync barriers to service whenever user changes them
     useEffect(() => {
-        serviceRef.current?.setBarrier(barrier);
-    }, [barrier]);
+        serviceRef.current?.setBarriers(overBarrier, underBarrier);
+    }, [overBarrier, underBarrier]);
 
     const handleStart = async () => {
         if (!serviceRef.current) return;
@@ -773,11 +1979,25 @@ export const MarketAnalysisTool = () => {
         setSectionTab('circles');
     };
 
+    // Strip Matches/Differs everywhere + apply Over/Under toggles
+    const visibleResults = results.map(r => ({
+        ...r,
+        liveSignals: r.liveSignals.filter(s => {
+            if (s.subType === 'matches_differs') return false;
+            if (s.subType !== 'over_under') return true;
+            if (!overEnabled && s.label.startsWith('Over')) return false;
+            if (!underEnabled && s.label.startsWith('Under')) return false;
+            return true;
+        }),
+    }));
+
     const SECTION_TABS: { key: SectionTab; label: string }[] = [
         { key: 'rankings', label: '🏆 Market Rankings' },
         { key: 'circles', label: '🔵 Circle Analysis' },
         { key: 'graphical', label: '📊 Graphical View' },
         { key: 'deepscan', label: '🔬 Deep Scan' },
+        { key: 'aiscan', label: '🤖 AI Scan' },
+        { key: 'ourec', label: '⚡ OU Recovery' },
     ];
 
     return (
@@ -810,46 +2030,66 @@ export const MarketAnalysisTool = () => {
 
             {/* ── Global controls bar ── */}
             <div className='mat__global-controls'>
-                {/* Over/Under direction + digit */}
+                {/* Over digit — toggle + free-type input */}
                 <div className='mat__ctrl-group'>
-                    <label className='mat__ctrl-label'>Over / Under</label>
-                    <div className='mat__ou-control'>
+                    <label className='mat__ctrl-label'>Over Digit (0–8)</label>
+                    <div className='mat__barrier-row'>
                         <button
-                            className={`mat__ou-btn ${ouDirection === 'over' ? 'mat__ou-btn--active' : ''}`}
-                            onClick={() => {
-                                setOuDirection('over');
-                                setBarrier(b => Math.min(b, 8)); // Over max = 8
-                            }}
+                            className={`mat__barrier-toggle mat__barrier-toggle--over ${overEnabled ? 'mat__barrier-toggle--on' : ''}`}
+                            onClick={() => setOverEnabled(v => !v)}
+                            title='Toggle Over analysis on/off'
                         >
-                            Over
+                            {overEnabled ? 'ON' : 'OFF'}
                         </button>
-                        <button
-                            className={`mat__ou-btn ${ouDirection === 'under' ? 'mat__ou-btn--active' : ''}`}
-                            onClick={() => {
-                                setOuDirection('under');
-                                setBarrier(b => Math.max(b, 1)); // Under min = 1
+                        <span className='mat__barrier-preview mat__barrier-preview--over'>Over</span>
+                        <input
+                            type='number'
+                            value={overInput}
+                            disabled={!overEnabled}
+                            onChange={e => {
+                                setOverInput(e.target.value);
+                                const n = parseInt(e.target.value, 10);
+                                if (!isNaN(n) && n >= 0 && n <= 8) setOverBarrier(n);
                             }}
-                        >
-                            Under
-                        </button>
+                            onBlur={() => {
+                                const n = parseInt(overInput, 10);
+                                const safe = isNaN(n) ? 4 : Math.max(0, Math.min(8, n));
+                                setOverBarrier(safe);
+                                setOverInput(String(safe));
+                            }}
+                            className={`mat__barrier-input mat__barrier-input--over ${!overEnabled ? 'mat__barrier-input--disabled' : ''}`}
+                        />
                     </div>
                 </div>
+                {/* Under digit — toggle + free-type input */}
                 <div className='mat__ctrl-group'>
-                    <label className='mat__ctrl-label'>Digit</label>
+                    <label className='mat__ctrl-label'>Under Digit (1–9)</label>
                     <div className='mat__barrier-row'>
-                        <span className='mat__barrier-preview'>
-                            {ouDirection === 'over' ? 'Over' : 'Under'} {barrier}
-                        </span>
+                        <button
+                            className={`mat__barrier-toggle mat__barrier-toggle--under ${underEnabled ? 'mat__barrier-toggle--on' : ''}`}
+                            onClick={() => setUnderEnabled(v => !v)}
+                            title='Toggle Under analysis on/off'
+                        >
+                            {underEnabled ? 'ON' : 'OFF'}
+                        </button>
+                        <span className='mat__barrier-preview mat__barrier-preview--under'>Under</span>
                         <input
-                            type='range'
-                            min={ouDirection === 'under' ? 1 : 0}
-                            max={ouDirection === 'over' ? 8 : 9}
-                            step={1}
-                            value={barrier}
-                            onChange={e => setBarrier(Number(e.target.value))}
-                            className='mat__barrier-slider'
+                            type='number'
+                            value={underInput}
+                            disabled={!underEnabled}
+                            onChange={e => {
+                                setUnderInput(e.target.value);
+                                const n = parseInt(e.target.value, 10);
+                                if (!isNaN(n) && n >= 1 && n <= 9) setUnderBarrier(n);
+                            }}
+                            onBlur={() => {
+                                const n = parseInt(underInput, 10);
+                                const safe = isNaN(n) ? 4 : Math.max(1, Math.min(9, n));
+                                setUnderBarrier(safe);
+                                setUnderInput(String(safe));
+                            }}
+                            className={`mat__barrier-input mat__barrier-input--under ${!underEnabled ? 'mat__barrier-input--disabled' : ''}`}
                         />
-                        <span className='mat__barrier-val'>{barrier}</span>
                     </div>
                 </div>
                 <div className='mat__ctrl-group'>
@@ -884,34 +2124,44 @@ export const MarketAnalysisTool = () => {
             {/* ── Section content ── */}
             {sectionTab === 'rankings' && (
                 <RankingsSection
-                    results={results}
+                    results={visibleResults}
                     onSelectMarket={handleSelectMarket}
                     tradeTypeFilter={tradeTypeFilter}
-                    ouDirection={ouDirection}
                 />
             )}
             {sectionTab === 'circles' && (
                 <CirclesSection
-                    results={results}
+                    results={visibleResults}
                     selectedSymbol={selectedSymbol}
                     onSymbolChange={setSelectedSymbol}
                     tradeTypeFilter={tradeTypeFilter}
                     onTradeTypeChange={setTradeTypeFilter}
-                    barrier={barrier}
-                    ouDirection={ouDirection}
+                    overBarrier={overBarrier}
+                    underBarrier={underBarrier}
+                    overEnabled={overEnabled}
+                    underEnabled={underEnabled}
                 />
             )}
             {sectionTab === 'graphical' && (
                 <GraphicalSection
-                    results={results}
+                    results={visibleResults}
                     onSelectMarket={handleSelectMarket}
                     tradeTypeFilter={tradeTypeFilter}
-                    ouDirection={ouDirection}
                 />
             )}
             {sectionTab === 'deepscan' && (
-                <DeepScanSection results={results} service={serviceRef.current} barrier={barrier} />
+                <DeepScanSection
+                    results={visibleResults}
+                    service={serviceRef.current}
+                    overBarrier={overBarrier}
+                    underBarrier={underBarrier}
+                    tradeTypeFilter={tradeTypeFilter}
+                />
             )}
+
+            {sectionTab === 'aiscan' && <AIScanSection results={visibleResults} tradeTypeFilter={tradeTypeFilter} />}
+
+            {sectionTab === 'ourec' && <OURecoverySection results={results} />}
 
             {/* ── Disclaimer ── */}
             <p className='mat__disclaimer'>

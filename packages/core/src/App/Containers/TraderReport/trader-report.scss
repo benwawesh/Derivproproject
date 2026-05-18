@@ -1,0 +1,167 @@
+// ── Trader identity card (sits above the mrd-* dashboard) ─────────────────────
+.tr-identity-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    background: #fff;
+    border: 1px solid #e6e6e6;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+
+    &__left {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    &__avatar {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        object-fit: cover;
+        flex-shrink: 0;
+        border: 2px solid #e6e6e6;
+
+        &--initials {
+            background: linear-gradient(135deg, #00a79e, #0072ff);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            font-weight: 700;
+            color: #fff;
+            border: none;
+        }
+    }
+
+    &__name {
+        font-size: 22px;
+        font-weight: 700;
+        color: #111;
+        margin: 0 0 8px;
+    }
+
+    &__meta {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    &__id {
+        font-size: 13px;
+        color: #999;
+        font-family: monospace;
+    }
+
+    &__country,
+    &__joined {
+        font-size: 13px;
+        color: #666;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    &__right {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 10px;
+    }
+}
+
+// ── Account type badge ─────────────────────────────────────────────────────────
+.tr-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 12px;
+    border-radius: 20px;
+
+    &--real {
+        background: #e6f4ea;
+        color: #16a534;
+    }
+    &--funded {
+        background: #e3f2fd;
+        color: #1976d2;
+    }
+    &--marketing {
+        background: #fff8e1;
+        color: #f59e0b;
+    }
+}
+
+// ── Verified badge ─────────────────────────────────────────────────────────────
+.tr-verified {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #00a79e;
+    font-weight: 600;
+
+    i {
+        font-size: 16px;
+    }
+}
+
+// ── Copy link button ───────────────────────────────────────────────────────────
+.tr-copy-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: #fff;
+    border: 1.5px solid #e6e6e6;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #555;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+        border-color: #00a79e;
+        color: #00a79e;
+    }
+}
+
+// ── Spinner (loading state) ────────────────────────────────────────────────────
+.tr-spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid #e6e6e6;
+    border-top-color: #00a79e;
+    border-radius: 50%;
+    animation: tr-spin 0.8s linear infinite;
+    margin: 0 auto;
+}
+
+@keyframes tr-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+// ── Footer disclaimer ──────────────────────────────────────────────────────────
+.tr-disclaimer {
+    margin-top: 28px;
+    padding: 16px 20px;
+    background: #f8f9fa;
+    border: 1px solid #e6e6e6;
+    border-radius: 10px;
+    font-size: 12px;
+    color: #888;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    i {
+        color: #00a79e;
+    }
+}

@@ -12,6 +12,7 @@ import Endpoint from 'Modules/Endpoint';
 const ChallengePage = React.lazy(() => import('App/Containers/Challenge'));
 const LeaderboardPage = React.lazy(() => import('App/Containers/Leaderboard'));
 const FreeBotsPage = React.lazy(() => import('App/Containers/FreeBots'));
+const TraderReportPage = React.lazy(() => import('App/Containers/TraderReport'));
 const AnalysisToolPage = React.lazy(() => import('App/Containers/AnalysisTool'));
 const RiskCalculatorPage = React.lazy(() => import('App/Containers/RiskCalculator'));
 const StrategiesPage = React.lazy(() => import('App/Containers/Strategies'));
@@ -329,10 +330,10 @@ const getModules = () => {
         },
         {
             path: routes.traders_hub,
-            component: ChallengePage,
+            component: DPAHomepage,
             is_authenticated: false,
             exact: true,
-            getTitle: () => 'DerivProAcademy | Funded Accounts',
+            getTitle: () => 'DerivProAcademy | Home',
         },
         {
             path: routes.challenge,
@@ -408,6 +409,12 @@ const getModules = () => {
             is_authenticated: false,
             getTitle: () => 'Callback',
         },
+        {
+            path: `${routes.trader_report}/:token`,
+            component: TraderReportPage,
+            is_authenticated: false,
+            getTitle: () => 'Trader Report',
+        },
     ];
 
     return modules;
@@ -421,7 +428,7 @@ const lazyLoadComplaintsPolicy = makeLazyLoader(
 // Order matters
 // TODO: search tag: test-route-parent-info -> Enable test for getting route parent info when there are nested routes
 const initRoutesConfig = () => [
-    { path: routes.index, component: ChallengePage, getTitle: () => 'DerivProAcademy | Funded Accounts' },
+    { path: routes.index, component: DPAHomepage, getTitle: () => 'DerivProAcademy | Home' },
     { path: routes.endpoint, component: Endpoint, getTitle: () => 'Endpoint' }, // doesn't need localization as it's for internal use
     { path: routes.os_redirect, component: OSRedirect, getTitle: () => localize('Redirect') },
     { path: routes.redirect, component: Redirect, getTitle: () => localize('Redirect') },

@@ -1,6 +1,29 @@
 import React, { useEffect, useState } from 'react';
 import { getLeaderboard, getCompetitionSettings } from '../../../Services/supabase';
+import TraderQRModal from '../TraderQR';
 import './leaderboard.scss';
+
+const DPA_API = /derivprofundedacademy\.com/.test(window.location.hostname)
+    ? 'https://api.derivprofundedacademy.com/api'
+    : 'http://localhost:8011/api';
+
+type TTraderProfile = {
+    id: number;
+    display_name: string;
+    masked_id: string;
+    avatar: string | null;
+    country: string;
+    account_type: string;
+    qr_token: string;
+    current_balance: number;
+    start_balance: number;
+    net_profit: number;
+    profit_percent: number;
+    win_rate: number;
+    bot_used: string;
+    market_traded: string;
+    total_trades: number;
+};
 
 type TLeaderboardEntry = {
     id: string;
@@ -51,6 +74,8 @@ const Leaderboard = () => {
     const [comp_settings, setCompSettings] = useState<TCompSettings | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [champions, setChampions] = useState<TTraderProfile[]>([]);
+    const [qr_trader, setQrTrader] = useState<TTraderProfile | null>(null);
 
     useEffect(() => {
         const load = async () => {
@@ -69,6 +94,11 @@ const Leaderboard = () => {
             }
         };
         load();
+
+        fetch(`${DPA_API}/trader-profiles/?placement=leaderboard`)
+            .then(r => r.json())
+            .then(data => setChampions(Array.isArray(data) ? data : []))
+            .catch(() => {});
 
         // Refresh every 30 seconds
         const interval = setInterval(load, 30000);
@@ -198,6 +228,78 @@ const Leaderboard = () => {
             <div className='dpa-leaderboard__footer'>
                 Rankings update every 30 seconds. Ranked by net profit generated during competition period.
             </div>
+
+            {/* ── Champions Spotlight ─────────────────────────────────────────── */}
+            {champions.length > 0 && (
+                <div className='dpa-leaderboard__champions'>
+                    <h2 className='dpa-leaderboard__champions-title'>
+                        <span>🏆</span> Champions Spotlight
+                    </h2>
+                    <p className='dpa-leaderboard__champions-sub'>
+                        Verified traders on our platform — scan their QR to see the full trade report.
+                    </p>
+                    <div className='dpa-leaderboard__champions-grid'>
+                        {champions.map((t, i) => {
+                            const profit_pos = t.net_profit >= 0;
+                            return (
+                                <div key={t.id} className='dpa-lb-champion'>
+                                    <div className='dpa-lb-champion__rank'>#{i + 1}</div>
+                                    <div className='dpa-lb-champion__avatar'>
+                                        {t.avatar ? (
+                                            <img src={t.avatar} alt={t.display_name} />
+                                        ) : (
+                                            <span>{t.display_name.charAt(0).toUpperCase()}</span>
+                                        )}
+                                    </div>
+                                    <div className='dpa-lb-champion__info'>
+                                        <div className='dpa-lb-champion__name'>{t.display_name}</div>
+                                        <div className='dpa-lb-champion__id'>{t.masked_id}</div>
+                                        {t.country && <div className='dpa-lb-champion__country'>📍 {t.country}</div>}
+                                    </div>
+                                    <div className='dpa-lb-champion__stats'>
+                                        <div className='dpa-lb-champion__stat'>
+                                            <span className='label'>Balance</span>
+                                            <span className='value'>${t.current_balance.toFixed(2)}</span>
+                                        </div>
+                                        <div className='dpa-lb-champion__stat'>
+                                            <span className='label'>Return</span>
+                                            <span
+                                                className='value'
+                                                style={{ color: profit_pos ? '#4caf50' : '#ef5350' }}
+                                            >
+                                                {profit_pos ? '+' : ''}
+                                                {t.profit_percent}%
+                                            </span>
+                                        </div>
+                                        <div className='dpa-lb-champion__stat'>
+                                            <span className='label'>Win Rate</span>
+                                            <span className='value'>{t.win_rate}%</span>
+                                        </div>
+                                        <div className='dpa-lb-champion__stat'>
+                                            <span className='label'>Trades</span>
+                                            <span className='value'>{t.total_trades}</span>
+                                        </div>
+                                    </div>
+                                    <button className='dpa-lb-champion__qr-btn' onClick={() => setQrTrader(t)}>
+                                        <span>⬛</span> View Report
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {qr_trader && (
+                <TraderQRModal
+                    qr_token={qr_trader.qr_token}
+                    display_name={qr_trader.display_name}
+                    masked_id={qr_trader.masked_id}
+                    avatar={qr_trader.avatar}
+                    account_type={qr_trader.account_type}
+                    on_close={() => setQrTrader(null)}
+                />
+            )}
         </div>
     );
 };

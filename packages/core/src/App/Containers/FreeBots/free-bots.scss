@@ -1,491 +1,201 @@
-.dpa-bots {
-    min-height: 100vh;
-    background: #0a0a0a;
-    color: #fff;
+// Custom styles for Free Bots filter bar elements not covered by betwin CSS.
+// All other page styles (lt-type__single, champion__single, breadcrumb-wrap, etc.)
+// come from betwin's own CSS loaded in the layer.
 
-    &__banner {
-        background: linear-gradient(135deg, #1a0000 0%, #8b0000 100%);
-        padding: 40px 24px;
-        text-align: center;
-        border-bottom: 2px solid #b71c1c;
-    }
-
-    &__banner-inner {
-        max-width: 600px;
-        margin: 0 auto;
-    }
-
-    &__banner-tag {
-        display: inline-block;
-        background: #b71c1c;
-        color: #fff;
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 2px;
-        padding: 4px 14px;
-        border-radius: 20px;
-        margin-bottom: 12px;
-    }
-
-    &__banner-title {
-        font-size: 32px;
-        font-weight: 800;
-        margin: 0 0 10px;
-        color: #fff;
-    }
-
-    &__banner-sub {
-        color: #ffcdd2;
-        font-size: 15px;
-        margin: 0;
-        line-height: 1.6;
-
-        strong {
-            color: #fff;
-        }
-    }
-
-    &__layout {
-        display: flex;
-        max-width: 1400px;
-        margin: 0 auto;
-        min-height: calc(100vh - 200px);
-    }
-
-    &__list {
-        flex: 1;
-        padding: 20px;
-        overflow-y: auto;
-        border-right: 1px solid #1e1e1e;
-    }
-
-    &__filters {
+.betwins-page {
+    // ── Filter bar layout ─────────────────────────────────────────────────────
+    .lt-type__filter {
         display: flex;
         align-items: center;
-        gap: 12px;
-        margin-bottom: 20px;
+        justify-content: space-between;
         flex-wrap: wrap;
+        gap: 16px;
     }
 
-    &__search-wrap {
-        position: relative;
-        flex: 1;
-        min-width: 180px;
-    }
-
-    &__search-icon {
-        position: absolute;
-        left: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #666;
-    }
-
-    &__search {
-        width: 100%;
-        padding: 9px 12px 9px 34px;
-        background: #111;
-        border: 1px solid #333;
-        border-radius: 8px;
-        color: #fff;
-        font-size: 13px;
-        outline: none;
-        box-sizing: border-box;
-
-        &:focus {
-            border-color: #b71c1c;
-        }
-    }
-
-    &__risk-filters {
+    .filter-group {
         display: flex;
-        gap: 6px;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
     }
 
-    &__risk-btn {
-        padding: 7px 14px;
-        border: 1px solid #333;
-        border-radius: 20px;
-        background: transparent;
-        color: #888;
-        font-size: 13px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
+    // ── Search input ──────────────────────────────────────────────────────────
+    .freebot-search {
+        position: relative;
+        display: flex;
+        align-items: center;
 
-        &.active,
-        &:hover {
-            border-color: #b71c1c;
-            color: #fff;
-            background: #b71c1c22;
+        i {
+            position: absolute;
+            left: 14px;
+            color: var(--primary-color);
+            font-size: 16px;
+            pointer-events: none;
+        }
+
+        input {
+            padding: 10px 18px 10px 40px;
+            background: var(--quaternary-color);
+            border: 1px solid var(--septenary-color);
+            border-radius: 30px;
+            color: #ffffff;
+            font-family: 'Chakra Petch', serif;
+            font-size: 14px;
+            outline: none;
+            min-width: 220px;
+            transition: border-color 0.3s;
+
+            &::placeholder {
+                color: rgba(255, 255, 255, 0.4);
+            }
+
+            &:focus {
+                border-color: var(--primary-color);
+            }
         }
     }
 
-    &__count {
-        font-size: 13px;
-        color: #555;
+    // ── Risk filter buttons ───────────────────────────────────────────────────
+    .freebot-risk-btns {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+
+        button {
+            padding: 10px 20px;
+            background: var(--quaternary-color);
+            border: 1px solid var(--septenary-color);
+            border-radius: 30px;
+            color: #ffffff;
+            font-family: 'Chakra Petch', serif;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+
+            &.active,
+            &:hover {
+                background: var(--primary-color);
+                border-color: var(--primary-color);
+                color: #1d1e24;
+            }
+        }
+    }
+
+    // ── Bot count label ───────────────────────────────────────────────────────
+    .freebot-count {
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.5);
         white-space: nowrap;
     }
 
-    &__grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-        gap: 16px;
+    // ── Decorative thumbnails — hide on mobile to prevent overflow ───────────
+    .left-thumb,
+    .left-thumb-th,
+    .chart {
+        pointer-events: none;
+        user-select: none;
     }
 
-    &__empty {
-        color: #555;
-        text-align: center;
-        padding: 40px;
-        grid-column: 1/-1;
-    }
-
-    &__card {
-        background: #111;
-        border: 1px solid #1e1e1e;
-        border-radius: 12px;
-        padding: 18px;
-        position: relative;
-        transition:
-            border-color 0.2s,
-            transform 0.2s;
-
-        &:hover {
-            border-color: #b71c1c;
-            transform: translateY(-2px);
-        }
-        &.featured {
-            border-color: #f57c00;
-        }
-        &.loaded {
-            border-color: #b71c1c;
-            background: #1a0000;
-        }
-    }
-
-    &__featured-badge {
-        position: absolute;
-        top: -1px;
-        right: 14px;
-        background: #f57c00;
-        color: #fff;
-        font-size: 10px;
-        font-weight: 700;
-        padding: 3px 10px;
-        border-radius: 0 0 8px 8px;
-    }
-
-    &__card-header {
+    // ── Champion stat row ─────────────────────────────────────────────────────
+    ul.champion {
         display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 10px;
-    }
-
-    &__card-icon {
-        font-size: 26px;
-    }
-    &__card-name {
-        font-size: 15px;
-        font-weight: 700;
-        color: #fff;
-    }
-    &__card-version {
-        font-size: 11px;
-        color: #666;
-        margin-top: 2px;
-    }
-
-    &__risk-badge {
-        margin-left: auto;
-        font-size: 11px;
-        font-weight: 700;
-        padding: 3px 10px;
-        border-radius: 20px;
-    }
-
-    &__card-desc {
-        font-size: 13px;
-        color: #aaa;
-        line-height: 1.5;
-        margin: 0 0 12px;
-    }
-
-    &__card-stats {
-        display: flex;
-        gap: 16px;
-        margin-bottom: 12px;
-    }
-    &__stat {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-    }
-    &__stat-label {
-        font-size: 11px;
-        color: #666;
-    }
-    &__stat-value {
-        font-size: 15px;
-        font-weight: 700;
-        color: #fff;
-        &.green {
-            color: #4caf50;
-        }
-    }
-
-    &__card-meta {
-        margin-bottom: 10px;
-    }
-
-    &__meta-row {
-        display: flex;
-        gap: 6px;
-        font-size: 12px;
-        margin-bottom: 4px;
-    }
-    &__meta-label {
-        color: #666;
-    }
-    &__meta-val {
-        color: #ccc;
-    }
-
-    &__tags {
-        display: flex;
+        justify-content: center;
         flex-wrap: wrap;
-        gap: 5px;
-        margin-bottom: 14px;
-    }
+        gap: 6px;
+        list-style: none;
+        padding: 0;
+        margin: 0;
 
-    &__tag {
-        background: #b71c1c22;
-        color: #ef9a9a;
-        font-size: 11px;
-        padding: 3px 8px;
-        border-radius: 20px;
-    }
-
-    &__load-btn {
-        width: 100%;
-        padding: 10px;
-        border: none;
-        border-radius: 8px;
-        background: linear-gradient(90deg, #b71c1c, #e53935);
-        color: #fff;
-        font-size: 14px;
-        font-weight: 700;
-        cursor: pointer;
-        transition: opacity 0.2s;
-
-        &:hover {
-            opacity: 0.85;
-        }
-        &.loaded {
-            background: #2e7d32;
-        }
-    }
-
-    &__loading {
-        text-align: center;
-        padding: 60px 24px;
-        color: #555;
-    }
-
-    &__empty-state {
-        text-align: center;
-        padding: 60px 24px;
-        color: #555;
-
-        h3 {
-            font-size: 20px;
-            color: #777;
-            margin-bottom: 8px;
-        }
-        p {
-            font-size: 14px;
-            line-height: 1.6;
-        }
-    }
-
-    &__empty-icon {
-        font-size: 48px;
-        margin-bottom: 16px;
-    }
-
-    &__panel {
-        width: 420px;
-        min-width: 380px;
-        background: #0f0f0f;
-        display: flex;
-        flex-direction: column;
-        position: sticky;
-        top: 0;
-        height: calc(100vh - 130px);
-    }
-
-    &__panel-empty {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        padding: 40px 24px;
-        color: #555;
-
-        &-icon {
-            font-size: 48px;
-            margin-bottom: 16px;
-        }
-        h3 {
-            font-size: 18px;
-            color: #777;
-            margin-bottom: 8px;
-        }
-        p {
+        li {
             font-size: 13px;
-            line-height: 1.6;
-            strong {
-                color: #ccc;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            white-space: nowrap;
+
+            &.active {
+                background: rgba(156, 236, 254, 0.15);
+                border-color: rgba(156, 236, 254, 0.4);
+                color: #9cecfe;
             }
         }
     }
 
-    &__panel-login-hint {
-        margin-top: 16px;
-        color: #f57c00;
-        font-size: 13px;
+    // ── Tablet (≤992px) ───────────────────────────────────────────────────────
+    @media (max-width: 992px) {
+        .left-thumb,
+        .chart {
+            display: none !important;
+        }
     }
 
-    &__how-step {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        margin-top: 16px;
-        text-align: left;
-        font-size: 14px;
-        color: #ccc;
-        line-height: 1.5;
-    }
+    // ── Mobile (≤768px) ───────────────────────────────────────────────────────
+    @media (max-width: 768px) {
+        .left-thumb-th {
+            display: none !important;
+        }
 
-    &__how-num {
-        min-width: 28px;
-        height: 28px;
-        background: #ff444f;
-        color: #fff;
-        font-size: 13px;
-        font-weight: 700;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-
-    &__dbot-wrap {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-    }
-
-    &__dbot-header {
-        display: flex;
-        flex-direction: column;
-        padding: 12px 16px;
-        background: #1a0000;
-        border-bottom: 1px solid #330000;
-    }
-
-    &__dbot-bot-name {
-        font-size: 15px;
-        font-weight: 700;
-        color: #ef9a9a;
-    }
-    &__dbot-market {
-        font-size: 12px;
-        color: #888;
-        margin-top: 2px;
-    }
-
-    &__dbot-warning {
-        background: #3a2000;
-        border: 1px solid #f57c00;
-        color: #ffb74d;
-        font-size: 13px;
-        padding: 10px 16px;
-        margin: 8px;
-        border-radius: 8px;
-    }
-
-    &__dbot-iframe {
-        flex: 1;
-        width: 100%;
-        border: none;
-        background: #fff;
-    }
-
-    &__disclaimer {
-        text-align: center;
-        color: #444;
-        font-size: 12px;
-        padding: 16px 24px;
-        border-top: 1px solid #1e1e1e;
-    }
-
-    @media (max-width: 900px) {
-        &__layout {
+        .lt-type__filter {
             flex-direction: column;
+            align-items: stretch;
         }
-        &__panel {
-            width: 100%;
-            height: 500px;
-            position: static;
-            min-width: unset;
-        }
-        &__list {
-            border-right: none;
-        }
-    }
-}
 
-/* ── FreeBots — mobile responsive ──────────────────────────────────────────── */
-@media (max-width: 600px) {
-    .dpa-bots {
-        &__banner {
-            padding: 24px 16px;
+        .filter-group {
+            flex-direction: column;
+            align-items: stretch;
         }
-        &__banner-title {
-            font-size: 22px;
-        }
-        &__banner-sub {
-            font-size: 14px;
-        }
-        &__list {
-            padding: 12px;
-        }
-        &__grid {
-            grid-template-columns: 1fr;
-            gap: 12px;
-        }
-        &__card {
-            padding: 14px;
-        }
-        &__empty-state {
-            padding: 40px 16px;
-            h3 {
-                font-size: 16px;
+
+        .freebot-search {
+            width: 100%;
+
+            input {
+                min-width: 0;
+                width: 100%;
             }
         }
-        &__empty-icon,
-        &__panel-empty-icon {
-            font-size: 36px;
+
+        .freebot-count {
+            text-align: center;
         }
-        &__panel {
-            height: 400px;
+    }
+
+    // ── Small mobile (≤576px) ─────────────────────────────────────────────────
+    @media (max-width: 576px) {
+        .lt-type__filter {
+            flex-direction: column;
+            align-items: flex-start;
         }
-        &__panel-empty {
-            padding: 24px 16px;
+
+        .freebot-search input {
+            min-width: 100%;
+        }
+
+        // Risk buttons: horizontal scroll so all buttons stay on one line
+        .freebot-risk-btns {
+            width: 100%;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            padding-bottom: 4px;
+
+            &::-webkit-scrollbar {
+                display: none;
+            }
+
+            button {
+                flex-shrink: 0;
+                padding: 8px 14px;
+                font-size: 13px;
+            }
+        }
+
+        // Champion stats: tighter on small screens
+        ul.champion li {
+            font-size: 12px;
+            padding: 3px 8px;
         }
     }
 }

@@ -1,7 +1,7 @@
 /**
- * MarketAnalysisService — Enhanced with advanced mathematical analysis
+ * MarketAnalysisService — Enhanced with advanced mathematical analysis + AI/ML
  *
- * Formulas used for digit markets:
+ * Statistical formulas:
  *  • Chi-Square test       — measures how far digit distribution deviates from uniform
  *  • Z-Score per digit     — statistical significance of each digit's deviation
  *  • Shannon Entropy       — measures predictability (lower = more predictable)
@@ -12,11 +12,27 @@
  *  • Binomial Confidence   — statistical proof that a bias is real and not random
  *  • Multi-window Check    — consistency across 10T, 50T, 100T, 500T windows
  *
- * Formulas used for direction markets (Rise/Fall, Higher/Lower):
+ * ML/AI (MarketAnalysisMLEngine):
+ *  • Neural Network        — 12→20→10→2 feedforward NN, online SGD backprop
+ *  • Ensemble Voter        — self-calibrating weights based on rolling formula accuracy
+ *
+ * Direction formulas:
  *  • RSI-14                — price momentum
  *  • EMA slope             — trend direction
  *  • Volatility (σ)        — standard deviation of price changes
  */
+
+import {
+    DigitNeuralNetwork,
+    EnsembleVoter,
+    ENSEMBLE_KEYS,
+    extractMLFeatures,
+    type MLPrediction,
+    type EnsembleKey,
+} from './MarketAnalysisMLEngine';
+
+export type { MLPrediction, EnsembleKey };
+export { ENSEMBLE_KEYS };
 
 export type ContractType = 'digits' | 'rise_fall' | 'higher_lower';
 export type DigitSubType = 'over_under' | 'even_odd' | 'matches_differs';
@@ -128,8 +144,8 @@ export interface MarketResult {
     confidence: Confidence;
     technical: TechnicalAnalysis;
     rank: number;
-    // NEW — auto-detected best signals across ALL trade types
     liveSignals: SignalScore[];
+    mlPrediction?: MLPrediction; // AI/ML output — present after NN has trained
 }
 
 export interface BestMarket {
@@ -160,6 +176,18 @@ interface InternalMarketData {
     entryExitHistory: EntryExitRecord[];
 }
 
+interface MLState {
+    nn: DigitNeuralNetwork;
+    voter: EnsembleVoter;
+    prevFeatures: number[] | null;
+    prevNNEvenPred: boolean | null;
+    prevFormulaPreds: Record<string, boolean> | null;
+    // EMA-smoothed values (α=0.06) — change slowly so display is readable
+    smoothEvenProb: number | null;
+    smoothRiseProb: number | null;
+    smoothEnsembleEvenProb: number | null;
+}
+
 // ─── Market list ──────────────────────────────────────────────────────────────
 
 export const ALL_MARKETS = [
@@ -185,10 +213,12 @@ export class MarketAnalysisService {
     private appId: string;
     private isConnected = false;
     private markets: Map<string, InternalMarketData> = new Map();
+    private mlStates: Map<string, MLState> = new Map();
     private tickWindows: number[] = [10, 50, 100, 500];
     private contractType: ContractType = 'digits';
     private digitSubType: DigitSubType = 'matches_differs';
-    private barrier: number = 4; // Over/Under barrier digit (0–8)
+    private overBarrier: number = 4; // Over digit (0–8)
+    private underBarrier: number = 4; // Under digit (1–9)
     private maxBuffer = 5000;
     private activeSymbols: string[] = [];
 
@@ -202,9 +232,10 @@ export class MarketAnalysisService {
 
     // ── Public configuration ─────────────────────────────────────────────────
 
-    /** Set the Over/Under barrier digit (0–9). UI enforces Over max=8, Under min=1. */
-    setBarrier(b: number) {
-        this.barrier = Math.max(0, Math.min(9, Math.round(b)));
+    /** Set independent Over and Under barrier digits. */
+    setBarriers(over: number, under: number) {
+        this.overBarrier = Math.max(0, Math.min(8, Math.round(over)));
+        this.underBarrier = Math.max(1, Math.min(9, Math.round(under)));
     }
 
     setContractType(type: ContractType, subType?: DigitSubType) {
@@ -245,6 +276,7 @@ export class MarketAnalysisService {
     async connect(symbols: string[]): Promise<boolean> {
         this.activeSymbols = symbols;
         this.markets.clear();
+        this.mlStates.clear();
         symbols.forEach(symbol => {
             this.markets.set(symbol, {
                 symbol,
@@ -255,6 +287,16 @@ export class MarketAnalysisService {
                 tickIndex: 0,
                 windowEntries: new Map(),
                 entryExitHistory: [],
+            });
+            this.mlStates.set(symbol, {
+                nn: new DigitNeuralNetwork(),
+                voter: new EnsembleVoter(),
+                prevFeatures: null,
+                prevNNEvenPred: null,
+                prevFormulaPreds: null,
+                smoothEvenProb: null,
+                smoothRiseProb: null,
+                smoothEnsembleEvenProb: null,
             });
         });
         this.onStatusCallback?.('connecting', 'Connecting to Deriv API...');
@@ -302,6 +344,137 @@ export class MarketAnalysisService {
         this.ws?.close();
         this.ws = null;
         this.markets.clear();
+        this.mlStates.clear();
+    }
+
+    // ── ML helpers ───────────────────────────────────────────────────────────
+
+    /**
+     * Derive a binary even/odd prediction from each formula using the current
+     * price buffer and pre-computed metrics. Each formula has its own logic:
+     *   chi_square / z_score / binomial → follow the dominant frequency
+     *   runs_test  → clustering (Z<0) = streak continues; alternation (Z>0) = reversal
+     *   rsi_eo     → mean-reversion: RSI>50 means too many evens → predict Odd
+     *   mwc        → follow the dominant frequency (same as chi_square)
+     *   markov     → sum P(even next | current digit) from the transition matrix
+     */
+    private deriveFormulaPredictions(prices: number[], metrics: AdvancedMetrics): Record<string, boolean> {
+        const digits = prices.map(p => parseInt(p.toString().replace('.', '').slice(-1)));
+        const n = digits.length;
+        const evenCount = digits.filter(d => d % 2 === 0).length;
+        const evenPct = evenCount / n;
+        const lastDigit = digits[n - 1];
+        const lastWasEven = lastDigit % 2 === 0;
+
+        // Most formulas follow frequency
+        const chi_square = evenPct > 0.5;
+        const z_score = evenPct > 0.5;
+        const binomial = evenPct > 0.5;
+        const mwc = evenPct > 0.5;
+
+        // Runs test: negative Z = clustering → predict streak continues
+        const runs_test = metrics.evenOddRunsZ < 0 ? lastWasEven : !lastWasEven;
+
+        // RSI: >50 = overbought even → mean-reversion → predict Odd
+        const rsi_eo = metrics.digitRsiEvenOdd < 50;
+
+        // Markov: sum even/odd next-digit probabilities for the current digit's row
+        let markov = lastWasEven;
+        if (metrics.markovMatrix?.[lastDigit]) {
+            const row = metrics.markovMatrix[lastDigit];
+            const pEven = [0, 2, 4, 6, 8].reduce((s, d) => s + (row[d] ?? 0), 0);
+            const pOdd = [1, 3, 5, 7, 9].reduce((s, d) => s + (row[d] ?? 0), 0);
+            markov = pEven >= pOdd;
+        }
+
+        return { chi_square, z_score, binomial, mwc, runs_test, rsi_eo, markov };
+    }
+
+    /**
+     * Train the neural network and update ensemble voter accuracy.
+     * Called from broadcastUpdate after signals and metrics are computed.
+     */
+    private updateMLEngine(
+        symbol: string,
+        newDigit: number,
+        direction: 'up' | 'down' | 'flat',
+        metrics: AdvancedMetrics
+    ): MLPrediction | undefined {
+        const state = this.mlStates.get(symbol);
+        const data = this.markets.get(symbol);
+        if (!state || !data || data.priceBuffer.length < 15) return undefined;
+
+        const isEven = newDigit % 2 === 0;
+        const isUp = direction === 'up';
+
+        // ── Train on previous features → current actual outcome ───────────────
+        if (state.prevFeatures) {
+            state.nn.train(state.prevFeatures, [isEven ? 1 : 0, isUp ? 1 : 0]);
+
+            // Record whether each formula's prediction was correct
+            if (state.prevFormulaPreds) {
+                for (const key of Object.keys(state.prevFormulaPreds)) {
+                    state.voter.record(key, state.prevFormulaPreds[key] === isEven);
+                }
+            }
+            if (state.prevNNEvenPred !== null) {
+                state.voter.record('neural_net', state.prevNNEvenPred === isEven);
+            }
+        }
+
+        // ── Extract new features from current buffer ──────────────────────────
+        const features = extractMLFeatures(data.priceBuffer);
+        state.prevFeatures = features;
+
+        if (!features) return undefined;
+
+        // ── Predict for the NEXT tick ─────────────────────────────────────────
+        const [evenProb, riseProb] = state.nn.predict(features);
+        state.prevNNEvenPred = evenProb >= 0.5;
+
+        // Store formula predictions (derived from metrics, used next tick)
+        state.prevFormulaPreds = this.deriveFormulaPredictions(data.priceBuffer, metrics);
+
+        // ── Build raw ensemble ────────────────────────────────────────────────
+        const nnAccuracy = state.nn.getAccuracy();
+        const accs = state.voter.allAccuracies(ENSEMBLE_KEYS) as Record<EnsembleKey, number>;
+        const wts = state.voter.allWeights(ENSEMBLE_KEYS) as Record<EnsembleKey, number>;
+
+        const nnW = Math.min(state.nn.trainingTicks / 500, 1) * 2;
+        const fW = (ENSEMBLE_KEYS as readonly string[])
+            .filter(k => k !== 'neural_net')
+            .reduce((s, k) => s + (wts[k as EnsembleKey] + 0.5), 0);
+
+        const last20 = data.priceBuffer.slice(-20);
+        const formulaEvenPct =
+            last20.filter(p => parseInt(p.toString().replace('.', '').slice(-1)) % 2 === 0).length / last20.length;
+
+        const rawEnsembleEvenProb = (nnW * evenProb + fW * formulaEvenPct) / (nnW + fW);
+
+        // ── EMA smoothing (α=0.06) — prevents display from flickering each tick ─
+        const α = 0.06;
+        state.smoothEvenProb = state.smoothEvenProb === null ? evenProb : α * evenProb + (1 - α) * state.smoothEvenProb;
+        state.smoothRiseProb = state.smoothRiseProb === null ? riseProb : α * riseProb + (1 - α) * state.smoothRiseProb;
+        state.smoothEnsembleEvenProb =
+            state.smoothEnsembleEvenProb === null
+                ? rawEnsembleEvenProb
+                : α * rawEnsembleEvenProb + (1 - α) * state.smoothEnsembleEvenProb;
+
+        const smoothEven = state.smoothEvenProb;
+        const smoothRise = state.smoothRiseProb;
+        const smoothEnsemble = state.smoothEnsembleEvenProb;
+        const dominantProb = Math.max(smoothEnsemble, 1 - smoothEnsemble);
+
+        return {
+            evenProb: smoothEven,
+            riseProb: smoothRise,
+            trainingTicks: state.nn.trainingTicks,
+            nnAccuracy,
+            accuracies: accs,
+            weights: wts,
+            ensembleEvenProb: smoothEnsemble,
+            ensembleEvenScore: dominantProb * 100,
+        };
     }
 
     // ── Message handling ─────────────────────────────────────────────────────
@@ -641,7 +814,12 @@ export class MarketAnalysisService {
     }
 
     /** Score ALL signal types for a market and return them sorted best → worst */
-    scoreAllSignals(prices: number[], directions: ('up' | 'down' | 'flat')[], metrics: AdvancedMetrics): SignalScore[] {
+    scoreAllSignals(
+        prices: number[],
+        directions: ('up' | 'down' | 'flat')[],
+        metrics: AdvancedMetrics,
+        mlPrediction?: MLPrediction
+    ): SignalScore[] {
         const signals: SignalScore[] = [];
         const n = prices.length;
         if (n < 20) return signals;
@@ -731,58 +909,118 @@ export class MarketAnalysisService {
             subType: 'even_odd',
         });
 
-        // ── OVER/UNDER — both signals with custom barrier ─────────────────────
-        // Score = actual win % so user sees the direct probability
-        const bar = this.barrier;
-        const overCount = digits.filter(d => d > bar).length;
-        const underCount = digits.filter(d => d < bar).length;
+        // ── OVER/UNDER — independent barriers for each direction ─────────────
+        const overBar = this.overBarrier;
+        const underBar = this.underBarrier;
+        const overCount = digits.filter(d => d > overBar).length;
+        const underCount = digits.filter(d => d < underBar).length;
         const overPct = (overCount / n) * 100;
         const underPct = (underCount / n) * 100;
-        // Expected win rates based on barrier position (uniform distribution)
-        const overExpected = ((9 - bar) / 10) * 100; // digits bar+1 … 9
-        const underExpected = (bar / 10) * 100; // digits 0 … bar-1
+        const overExpected = ((9 - overBar) / 10) * 100;
+        const underExpected = (underBar / 10) * 100;
         const overEdge = overPct - overExpected;
         const underEdge = underPct - underExpected;
         const overConf: Confidence = overEdge >= 5 ? 'High' : overEdge >= 2 ? 'Medium' : 'Low';
         const underConf: Confidence = underEdge >= 5 ? 'High' : underEdge >= 2 ? 'Medium' : 'Low';
         signals.push({
-            label: `Over ${bar} (${overPct.toFixed(1)}%)`,
+            label: `Over ${overBar} (${overPct.toFixed(1)}%)`,
             score: overPct,
             confidence: overConf,
-            explanation: `Over ${bar}: ${overPct.toFixed(1)}% actual vs ${overExpected.toFixed(0)}% expected. Edge: ${overEdge >= 0 ? '+' : ''}${overEdge.toFixed(1)}%. Digit RSI=${metrics.digitRsiOverUnder.toFixed(0)}, Window consistency=${mwc.toFixed(0)}%`,
+            explanation: `Over ${overBar}: ${overPct.toFixed(1)}% actual vs ${overExpected.toFixed(0)}% expected. Edge: ${overEdge >= 0 ? '+' : ''}${overEdge.toFixed(1)}%. Digit RSI=${metrics.digitRsiOverUnder.toFixed(0)}, Window consistency=${mwc.toFixed(0)}%`,
             subType: 'over_under',
         });
         signals.push({
-            label: `Under ${bar} (${underPct.toFixed(1)}%)`,
+            label: `Under ${underBar} (${underPct.toFixed(1)}%)`,
             score: underPct,
             confidence: underConf,
-            explanation: `Under ${bar}: ${underPct.toFixed(1)}% actual vs ${underExpected.toFixed(0)}% expected. Edge: ${underEdge >= 0 ? '+' : ''}${underEdge.toFixed(1)}%. Digit RSI=${metrics.digitRsiOverUnder.toFixed(0)}, Window consistency=${mwc.toFixed(0)}%`,
+            explanation: `Under ${underBar}: ${underPct.toFixed(1)}% actual vs ${underExpected.toFixed(0)}% expected. Edge: ${underEdge >= 0 ? '+' : ''}${underEdge.toFixed(1)}%. Digit RSI=${metrics.digitRsiOverUnder.toFixed(0)}, Window consistency=${mwc.toFixed(0)}%`,
             subType: 'over_under',
         });
 
-        // ── RISE / FALL ───────────────────────────────────────────────────────
-        const rfDev = Math.abs(dir.upPercentage - 50) * 2;
-        const dominantRF = dir.upPercentage >= dir.downPercentage ? 'Rise' : 'Fall';
-        const rsiScore = metrics.rsi14 !== null ? Math.abs(metrics.rsi14 - 50) * 2 : 0;
-        const rfScore = Math.min(100, rsiScore * 0.3 + rfDev * 0.3 + mwc * 0.25 + metrics.volatilityScore * 0.15);
+        // ── RISE / FALL — actual win percentages, both signals (mirrors Even/Odd) ─
+        const risePct = dir.upPercentage;
+        const fallPct = dir.downPercentage;
+        const riseEdge = risePct - 50;
+        const fallEdge = fallPct - 50;
+        const riseConf: Confidence = Math.abs(riseEdge) >= 7 ? 'High' : Math.abs(riseEdge) >= 3 ? 'Medium' : 'Low';
+        const fallConf: Confidence = Math.abs(fallEdge) >= 7 ? 'High' : Math.abs(fallEdge) >= 3 ? 'Medium' : 'Low';
         signals.push({
-            label: dominantRF,
-            score: rfScore,
-            confidence: rfScore >= 60 ? 'High' : rfScore >= 35 ? 'Medium' : 'Low',
-            explanation: `${dominantRF}: ${Math.max(dir.upPercentage, dir.downPercentage).toFixed(1)}% price moves up. RSI=${metrics.rsi14?.toFixed(0) ?? 'N/A'}, Volatility score=${metrics.volatilityScore.toFixed(0)}`,
+            label: `Rise (${risePct.toFixed(1)}%)`,
+            score: risePct,
+            confidence: riseConf,
+            explanation: `Price rose on ${risePct.toFixed(1)}% of ticks vs expected 50%. Edge: ${riseEdge >= 0 ? '+' : ''}${riseEdge.toFixed(1)}%. RSI=${metrics.rsi14?.toFixed(0) ?? 'N/A'}, Volatility=${metrics.volatilityScore.toFixed(0)}`,
+            subType: 'rise_fall',
+        });
+        signals.push({
+            label: `Fall (${fallPct.toFixed(1)}%)`,
+            score: fallPct,
+            confidence: fallConf,
+            explanation: `Price fell on ${fallPct.toFixed(1)}% of ticks vs expected 50%. Edge: ${fallEdge >= 0 ? '+' : ''}${fallEdge.toFixed(1)}%. RSI=${metrics.rsi14?.toFixed(0) ?? 'N/A'}, Volatility=${metrics.volatilityScore.toFixed(0)}`,
             subType: 'rise_fall',
         });
 
-        // ── HIGHER / LOWER ────────────────────────────────────────────────────
-        const dominantHL = dir.upPercentage >= dir.downPercentage ? 'Higher' : 'Lower';
-        const hlScore = Math.min(100, rsiScore * 0.25 + rfDev * 0.25 + metrics.emaSlopeScore * 0.25 + mwc * 0.25);
+        // ── HIGHER / LOWER — actual win percentages, both signals ─────────────
+        const higherPct = dir.upPercentage;
+        const lowerPct = dir.downPercentage;
+        const higherEdge = higherPct - 50;
+        const lowerEdge = lowerPct - 50;
+        const higherConf: Confidence =
+            Math.abs(higherEdge) >= 7 ? 'High' : Math.abs(higherEdge) >= 3 ? 'Medium' : 'Low';
+        const lowerConf: Confidence = Math.abs(lowerEdge) >= 7 ? 'High' : Math.abs(lowerEdge) >= 3 ? 'Medium' : 'Low';
         signals.push({
-            label: dominantHL,
-            score: hlScore,
-            confidence: hlScore >= 60 ? 'High' : hlScore >= 35 ? 'Medium' : 'Low',
-            explanation: `${dominantHL}: EMA slope=${metrics.emaSlopeScore.toFixed(0)}%, RSI=${metrics.rsi14?.toFixed(0) ?? 'N/A'}`,
+            label: `Higher (${higherPct.toFixed(1)}%)`,
+            score: higherPct,
+            confidence: higherConf,
+            explanation: `Price higher on ${higherPct.toFixed(1)}% of ticks. Edge: ${higherEdge >= 0 ? '+' : ''}${higherEdge.toFixed(1)}%. EMA slope=${metrics.emaSlopeScore.toFixed(0)}%, RSI=${metrics.rsi14?.toFixed(0) ?? 'N/A'}`,
             subType: 'higher_lower',
         });
+        signals.push({
+            label: `Lower (${lowerPct.toFixed(1)}%)`,
+            score: lowerPct,
+            confidence: lowerConf,
+            explanation: `Price lower on ${lowerPct.toFixed(1)}% of ticks. Edge: ${lowerEdge >= 0 ? '+' : ''}${lowerEdge.toFixed(1)}%. EMA slope=${metrics.emaSlopeScore.toFixed(0)}%, RSI=${metrics.rsi14?.toFixed(0) ?? 'N/A'}`,
+            subType: 'higher_lower',
+        });
+
+        // ── NEURAL NETWORK + ENSEMBLE ─────────────────────────────────────────
+        if (mlPrediction && mlPrediction.trainingTicks >= 30) {
+            const { evenProb, riseProb, trainingTicks, nnAccuracy, ensembleEvenProb, ensembleEvenScore } = mlPrediction;
+
+            // NN Even/Odd signal
+            const nnEven = evenProb >= 0.5;
+            const nnEvenPct = (nnEven ? evenProb : 1 - evenProb) * 100;
+            const nnEOConf: Confidence = nnEvenPct >= 60 ? 'High' : nnEvenPct >= 54 ? 'Medium' : 'Low';
+            signals.push({
+                label: `NN: ${nnEven ? 'Even' : 'Odd'} (${nnEvenPct.toFixed(1)}%)`,
+                score: nnEvenPct,
+                confidence: nnEOConf,
+                explanation: `Neural network predicts ${nnEven ? 'Even' : 'Odd'} with ${nnEvenPct.toFixed(1)}% probability. Trained on ${trainingTicks} ticks, rolling accuracy=${(nnAccuracy * 100).toFixed(1)}%.`,
+                subType: 'neural_net',
+            });
+
+            // NN Rise/Fall signal
+            const nnRise = riseProb >= 0.5;
+            const nnRFPct = (nnRise ? riseProb : 1 - riseProb) * 100;
+            const nnRFConf: Confidence = nnRFPct >= 60 ? 'High' : nnRFPct >= 54 ? 'Medium' : 'Low';
+            signals.push({
+                label: `NN: ${nnRise ? 'Rise' : 'Fall'} (${nnRFPct.toFixed(1)}%)`,
+                score: nnRFPct,
+                confidence: nnRFConf,
+                explanation: `Neural network predicts price will ${nnRise ? 'rise' : 'fall'} next tick with ${nnRFPct.toFixed(1)}% probability.`,
+                subType: 'neural_net',
+            });
+
+            // Ensemble Even/Odd signal — combines NN + all 8 statistical formulas
+            const ensEven = ensembleEvenProb >= 0.5;
+            const ensConf: Confidence = ensembleEvenScore >= 65 ? 'High' : ensembleEvenScore >= 56 ? 'Medium' : 'Low';
+            signals.push({
+                label: `Ensemble: ${ensEven ? 'Even' : 'Odd'} (${ensembleEvenScore.toFixed(1)}%)`,
+                score: ensembleEvenScore,
+                confidence: ensConf,
+                explanation: `Weighted ensemble of all 9 formulas + neural network. Each source weighted by its recent prediction accuracy. ${trainingTicks} training ticks.`,
+                subType: 'ensemble',
+            });
+        }
 
         return signals.sort((a, b) => b.score - a.score);
     }
@@ -986,7 +1224,14 @@ export class MarketAnalysisService {
 
             // Fast live signals (all trade types, lighter computation)
             const metrics = this.computeAdvancedMetrics(data.priceBuffer, data.directionBuffer);
-            const liveSignals = this.scoreAllSignals(data.priceBuffer, data.directionBuffer, metrics);
+
+            // ML engine: train NN and compute ensemble prediction
+            const lastDigit = parseInt(data.currentPrice.toString().replace('.', '').slice(-1));
+            const lastDir = data.directionBuffer[data.directionBuffer.length - 1] ?? 'flat';
+            const mlPrediction = this.updateMLEngine(symbol, lastDigit, lastDir, metrics);
+
+            // Inject ML signals into the live signal list
+            const liveSignals = this.scoreAllSignals(data.priceBuffer, data.directionBuffer, metrics, mlPrediction);
 
             results.push({
                 symbol,
@@ -1006,6 +1251,7 @@ export class MarketAnalysisService {
                 technical: this.computeTechnical(data.priceBuffer),
                 rank: 0,
                 liveSignals,
+                mlPrediction,
             });
         });
 

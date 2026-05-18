@@ -34,6 +34,7 @@ import Header from './Containers/Layout/header/header';
 import Footer from './Containers/Layout/footer.jsx';
 import AppModals from './Containers/Modals';
 import Routes from './Containers/Routes/routes.jsx';
+import FloatingAnalysisManager from 'Modules/MarketAnalysis/FloatingAnalysisManager';
 import Devtools from './Devtools';
 
 const AppContent: React.FC<{ passthrough: unknown }> = observer(({ passthrough }) => {
@@ -231,6 +232,7 @@ const AppContent: React.FC<{ passthrough: unknown }> = observer(({ passthrough }
                 <AppModals />
             </ErrorBoundary>
             <AppToastMessages />
+            <FloatingAnalysisManager />
             <Devtools />
         </ThemeProvider>
     );

@@ -106,6 +106,7 @@ export const routes = {
     strategies: '/strategies',
     copy_trading: '/copy-trading',
     admin: '/dpa-secure-panel-7801',
+    trader_report: '/trader',
     premium_bots: '/superbot',
     multi_market_differs: '/superbot/multi-market-differs',
     my_reports: '/my-reports',
