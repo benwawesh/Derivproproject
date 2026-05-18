@@ -84,6 +84,8 @@ const css_loaders = [
         loader: 'css-loader',
         options: {
             sourceMap: !IS_RELEASE,
+            // Don't bundle WordPress server assets — leave @import url('/wp-*') as-is in output
+            import: url => !url.startsWith('/wp-content') && !url.startsWith('/wp-includes'),
         },
     },
     {

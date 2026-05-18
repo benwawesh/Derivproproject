@@ -1,239 +1,172 @@
-import { useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useHistory } from 'react-router-dom';
 import { observer, useStore } from '@deriv/stores';
 import { redirectToLogin, routes } from '@deriv/shared';
 import { getLanguage } from '@deriv/translations';
 import './dpa-homepage.scss';
 
-const BETWIN_CSS = [
-    '/wp-content/uploads/elementor/google-fonts/css/chakrapetchb160.css',
-    '/wp-content/themes/betwins/assets/css/animate3517.css',
-    '/wp-content/themes/betwins/assets/css/aos3517.css',
-    '/wp-content/themes/betwins/assets/css/bootstrap.min3517.css',
-    '/wp-content/themes/betwins/assets/fonts/css/tabler-icons.min7a5f.css',
-    '/wp-content/themes/betwins/assets/css/magnific-popup3517.css',
-    '/wp-content/plugins/betwins-core/assets/css/nice-select7406.css',
-    '/wp-content/plugins/betwins-core/assets/css/odometer7406.css',
-    '/wp-content/plugins/betwins-core/assets/css/swiper-bundle.min7406.css',
-    '/wp-content/plugins/betwins-core/assets/css/main-style7406.css',
-    '/wp-content/plugins/elementor/assets/css/frontend.min8e60.css',
-    '/wp-content/plugins/elementor/assets/css/widget-image.min8e60.css',
-    '/wp-content/plugins/elementor/assets/css/widget-heading.min8e60.css',
-    '/wp-content/plugins/elementor/assets/css/widget-icon-box.min8e60.css',
-    '/wp-content/plugins/elementor/assets/lib/animations/styles/fadeInUp.min8e60.css',
-    '/wp-content/plugins/elementor/assets/lib/font-awesome/css/font-awesome.min1849.css',
-    '/wp-content/themes/betwins/assets/css/master3517.css',
-    '/wp-content/themes/betwins/assets/css/template-settings3517.css',
-    '/wp-content/themes/betwins/assets/css/main-style3517.css',
-    '/wp-content/themes/betwins/assets/css/responsive3517.css',
-    '/wp-content/uploads/elementor/css/post-149c2f.css',
-    '/wp-content/uploads/elementor/css/post-155873.css',
-];
-
-// Load scripts sequentially so dependencies are satisfied
-const BETWIN_JS = [
-    '/wp-includes/js/jquery/jquery.minf43b.js',
-    '/wp-includes/js/jquery/jquery-migrate.min5589.js',
-    '/wp-content/plugins/betwins-core/assets/js/aos0ba6.js',
-    '/wp-content/plugins/betwins-core/assets/js/gsap.min0ba6.js',
-    '/wp-content/plugins/betwins-core/assets/js/isotope.pkgd.min0ba6.js',
-    '/wp-content/plugins/betwins-core/assets/js/vanilla-tilt.min0ba6.js',
-    '/wp-content/plugins/betwins-core/assets/js/odometer.min20b9.js',
-    '/wp-content/plugins/betwins-core/assets/js/ScrollToPlugin.min20b9.js',
-    '/wp-content/plugins/betwins-core/assets/js/ScrollTrigger.min20b9.js',
-    '/wp-content/plugins/betwins-core/assets/js/SplitText.min20b9.js',
-    '/wp-content/plugins/betwins-core/assets/js/viewport.jquery20b9.js',
-    '/wp-content/plugins/betwins-core/assets/js/wow.minf39e.js',
-    '/wp-content/plugins/elementor/assets/lib/swiper/v8/swiper.min94a4.js',
-    '/wp-content/themes/betwins/assets/js/bootstrap.mince52.js',
-    '/wp-content/themes/betwins/assets/js/fontawesome.min8a54.js',
-    '/wp-content/plugins/betwins-core/assets/js/main3517.js',
-    '/wp-content/themes/betwins/assets/js/main3517.js',
-];
-
-// Inject CSS at module-load time so the browser starts fetching
-// betwin stylesheets before the first React render, reducing FOUC.
-if (typeof document !== 'undefined') {
-    BETWIN_CSS.forEach(href => {
-        if (document.querySelector(`style[data-betwin-src="${href}"]`)) return;
-        const style = document.createElement('style');
-        style.setAttribute('data-betwin-src', href);
-        style.textContent = `@import url("${href}") layer(betwin);`;
-        document.head.appendChild(style);
-    });
-}
-
 function useBetwinAssets() {
     useEffect(() => {
-        BETWIN_CSS.forEach(href => {
-            if (document.querySelector(`style[data-betwin-src="${href}"]`)) return;
-            const style = document.createElement('style');
-            style.setAttribute('data-betwin-src', href);
-            // Load in a CSS layer so all unlayered DPA CSS always wins in cascade
-            style.textContent = `@import url("${href}") layer(betwin);`;
-            document.head.appendChild(style);
-        });
-
-        const scripts: HTMLScriptElement[] = [];
         let aosObserver: IntersectionObserver | null = null;
         let initTimer: ReturnType<typeof setTimeout> | null = null;
 
-        const loadScript = (src: string) =>
-            new Promise<void>(resolve => {
-                if (document.querySelector(`script[src="${src}"]`)) {
-                    resolve();
-                    return;
-                }
-                const s = document.createElement('script');
-                s.src = src;
-                s.async = false;
-                s.onload = () => resolve();
-                s.onerror = () => resolve();
-                document.body.appendChild(s);
-                scripts.push(s);
-            });
-
-        (async () => {
-            // Phase 1: load all dependencies before the main3517 scripts.
-            // This lets us set ScrollTrigger's scroller to Deriv's #app_contents
-            // BEFORE main3517.js creates any ScrollTrigger instances (title-animation,
-            // progress bars, parallax). Without this, they all default to window and
-            // never fire inside Deriv's custom scroll container.
-            const preMain = BETWIN_JS.slice(0, BETWIN_JS.length - 2);
-            const mainScripts = BETWIN_JS.slice(BETWIN_JS.length - 2);
-
-            for (const src of preMain) {
-                await loadScript(src);
-            }
-
-            const scrollContainer = document.getElementById('app_contents');
-            if ((window as any).gsap && (window as any).ScrollTrigger && scrollContainer) {
-                (window as any).ScrollTrigger.defaults({ scroller: scrollContainer });
-            }
-
-            for (const src of mainScripts) {
-                await loadScript(src);
-            }
-
-            initTimer = setTimeout(() => {
-                const w = window as any;
-
-                if (w.$ && w.$.fn.isotope) {
-                    w.$('.filter-wrapper').isotope({ itemSelector: '.filter-item', layoutMode: 'fitRows' });
-                }
-
-                // Reinitialize Swiper sliders explicitly — main3517.js may have run
-                // before React finished painting, so sliders need a fresh init.
-                if (w.Swiper) {
-                    new w.Swiper('.lottery__type-slider', {
-                        loop: true,
-                        speed: 1000,
-                        slidesPerView: 1,
-                        slidesPerGroup: 1,
-                        spaceBetween: 24,
-                        freeMode: true,
-                        centeredSlides: true,
-                        autoplay: { delay: 2000, disableOnInteraction: false, pauseOnMouseEnter: true },
-                        navigation: { nextEl: '.next-lottery', prevEl: '.prev-lottery' },
-                        breakpoints: { 576: { slidesPerView: 2 }, 992: { slidesPerView: 3 } },
-                    });
-                    new w.Swiper('.testimonial__slider', {
-                        loop: true,
-                        speed: 800,
-                        slidesPerView: 1,
-                        spaceBetween: 24,
-                        navigation: { nextEl: '.next-testimonial', prevEl: '.prev-testimonial' },
-                    });
-                }
-
-                // Reinitialize VanillaTilt for .tilt cards
-                if (w.VanillaTilt) {
-                    w.VanillaTilt.init(document.querySelectorAll('.tilt'), { max: 5, speed: 3000 });
-                }
-
-                // Title animation: char-by-char slide-in that REPEATS on every scroll pass.
-                // When the heading leaves the viewport we instantly reset the chars back to
-                // their hidden state (no transition) so the slide-in plays again on the
-                // next entry.
-                const sc = document.getElementById('app_contents');
-                if (sc) {
-                    document.querySelectorAll('.title-animation').forEach((el: Element) => {
-                        if (el.querySelector('.title-char')) return; // already split
-                        const text = (el.textContent || '').trim();
-                        if (!text) return;
-                        el.innerHTML = text
-                            .split('')
-                            .map((ch: string, i: number) => {
-                                const esc = ch === '&' ? '&amp;' : ch === '<' ? '&lt;' : ch === '>' ? '&gt;' : ch;
-                                if (ch === ' ')
-                                    return '<span style="display:inline-block;min-width:0.3em">&nbsp;</span>';
-                                const delay = (i * 0.04).toFixed(2);
-                                const tr = `opacity 0.6s cubic-bezier(0.34,1.56,0.64,1) ${delay}s,transform 0.6s cubic-bezier(0.34,1.56,0.64,1) ${delay}s`;
-                                return `<span class="title-char" data-tr="${tr}" style="display:inline-block;opacity:0;transform:translateX(40px);transition:${tr}">${esc}</span>`;
-                            })
-                            .join('');
-                        const io = new IntersectionObserver(
-                            entries => {
-                                entries.forEach(entry => {
-                                    const chars = Array.from(el.querySelectorAll('.title-char')) as HTMLElement[];
-                                    if (entry.isIntersecting) {
-                                        // Animate in
-                                        chars.forEach(span => {
-                                            span.style.opacity = '1';
-                                            span.style.transform = 'translateX(0)';
-                                        });
-                                    } else {
-                                        // Instantly reset so animation replays next scroll
-                                        chars.forEach(span => {
-                                            span.style.transition = 'none';
-                                            span.style.opacity = '0';
-                                            span.style.transform = 'translateX(40px)';
-                                            requestAnimationFrame(() => {
-                                                span.style.transition = span.dataset.tr || '';
-                                            });
-                                        });
-                                    }
-                                });
-                            },
-                            { root: sc, threshold: 0.1 }
-                        );
-                        io.observe(el);
-                    });
-                }
-
-                // AOS animations: toggle on every scroll pass instead of once.
-                // Removing unobserve + toggling the class means elements re-animate
-                // every time they scroll into view.
-                const scrollContainer = document.getElementById('app_contents');
-                if (scrollContainer) {
-                    aosObserver = new IntersectionObserver(
+        initTimer = setTimeout(() => {
+            // Title animation: char-by-char slide-in that REPEATS on every scroll pass.
+            const sc = document.getElementById('app_contents');
+            if (sc) {
+                document.querySelectorAll('.title-animation').forEach((el: Element) => {
+                    if (el.querySelector('.title-char')) return; // already split
+                    const text = (el.textContent || '').trim();
+                    if (!text) return;
+                    let charIdx = 0;
+                    el.innerHTML = text
+                        .split(' ')
+                        .map((word: string) => {
+                            const wordHtml = word
+                                .split('')
+                                .map((ch: string) => {
+                                    const esc = ch === '&' ? '&amp;' : ch === '<' ? '&lt;' : ch === '>' ? '&gt;' : ch;
+                                    const delay = (charIdx * 0.04).toFixed(2);
+                                    charIdx++;
+                                    const tr = `opacity 0.6s cubic-bezier(0.34,1.56,0.64,1) ${delay}s,transform 0.6s cubic-bezier(0.34,1.56,0.64,1) ${delay}s`;
+                                    return `<span class="title-char" data-tr="${tr}" style="display:inline-block;opacity:0;transform:translateX(40px);transition:${tr}">${esc}</span>`;
+                                })
+                                .join('');
+                            return `<span style="display:inline-block;white-space:nowrap">${wordHtml}</span>`;
+                        })
+                        .join('<span style="display:inline-block;min-width:0.3em">&nbsp;</span>');
+                    const io = new IntersectionObserver(
                         entries => {
                             entries.forEach(entry => {
+                                const chars = Array.from(el.querySelectorAll('.title-char')) as HTMLElement[];
                                 if (entry.isIntersecting) {
-                                    entry.target.classList.add('aos-animate');
+                                    chars.forEach(span => {
+                                        span.style.opacity = '1';
+                                        span.style.transform = 'translateX(0)';
+                                    });
                                 } else {
-                                    entry.target.classList.remove('aos-animate');
+                                    chars.forEach(span => {
+                                        span.style.transition = 'none';
+                                        span.style.opacity = '0';
+                                        span.style.transform = 'translateX(40px)';
+                                        requestAnimationFrame(() => {
+                                            span.style.transition = span.dataset.tr || '';
+                                        });
+                                    });
                                 }
                             });
                         },
-                        { root: scrollContainer, threshold: 0.05, rootMargin: '0px 0px -50px 0px' }
+                        { root: sc, threshold: 0.1 }
                     );
-                    document.querySelectorAll('[data-aos]').forEach(el => aosObserver!.observe(el));
-                }
-            }, 300);
-        })();
+                    io.observe(el);
+                });
+            }
+
+            // AOS animations: toggle on every scroll pass instead of once.
+            const scrollContainer = document.getElementById('app_contents');
+            if (scrollContainer) {
+                aosObserver = new IntersectionObserver(
+                    entries => {
+                        entries.forEach(entry => {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add('aos-animate');
+                            } else {
+                                entry.target.classList.remove('aos-animate');
+                            }
+                        });
+                    },
+                    { root: scrollContainer, threshold: 0.05, rootMargin: '0px 0px -50px 0px' }
+                );
+                document.querySelectorAll('[data-aos]').forEach(el => aosObserver!.observe(el));
+            }
+        }, 300);
 
         return () => {
             if (initTimer) clearTimeout(initTimer);
             aosObserver?.disconnect();
-            // CSS and scripts are kept in the DOM intentionally — removing them on
-            // unmount causes a visible flash when navigating away and back.
-            // The !important overrides in dpa-homepage.scss protect the DPA header.
         };
     }, []);
 }
 
 const IMG = '/wp-content/uploads/2025/07/';
+
+const LOTTERY_ITEMS = [
+    { img: 'image-slider-one.png', name: 'Euro Millions', price: '$657.54' },
+    { img: 'image-slider-four.png', name: 'Hot Lotto', price: '$657.54' },
+    { img: 'image-slider-two.png', name: 'OZ Lotto Star', price: '$657.54' },
+    { img: 'image-slider-three.png', name: 'Bingo Jackpot', price: '$657.54' },
+    { img: 'image-slider-four.png', name: 'Hot Lotto', price: '$657.54' },
+];
+
+const TESTI_ITEMS = [
+    { img: 'testi-thumb01.png', name: 'Jhon Suria', role: 'Frontend Developer' },
+    { img: 'testi-thumb02.png', name: 'Kiss Laura', role: 'Product Designer' },
+    { img: 'testi-thumb03.png', name: 'Suphiya Khan', role: 'Pro Player' },
+    { img: 'testi-thumb04.png', name: 'Jhon Joshi', role: 'Senior Player' },
+];
+
+const CONTESTS = [
+    {
+        cat: 'Car',
+        img: 'car-four.png',
+        badge: 'Exclusive',
+        num: '9T2',
+        title: 'Treasure Draw',
+        price: '$12.85',
+        tickets: '95K+ Remaining',
+        days: '5 Days',
+    },
+    {
+        cat: 'Watch',
+        img: 'car-one.png',
+        badge: 'Exclusive',
+        num: '9T2',
+        title: 'Drive & Win',
+        price: '$12.85',
+        tickets: '95K+ Remaining',
+        days: '5 Days',
+    },
+    {
+        cat: 'Laptop',
+        img: 'car-two.png',
+        badge: 'Exclusive',
+        num: '5B2',
+        title: 'Wheel Triumph',
+        price: '$36.22',
+        tickets: '95K+ Remaining',
+        days: '7 Days',
+    },
+    {
+        cat: 'Car',
+        img: 'car-three.png',
+        badge: 'Exclusive',
+        num: '5B2',
+        title: 'Luxury Wheels',
+        price: '$36.22',
+        tickets: '95K+ Remaining',
+        days: '7 Days',
+    },
+    {
+        cat: 'Bike',
+        img: 'car-five.png',
+        badge: 'Exclusive',
+        num: 'R15',
+        title: 'Draw Treasure',
+        price: '$1420',
+        tickets: '95K+ Remaining',
+        days: '3 Days',
+    },
+    {
+        cat: 'Cycle',
+        img: 'car-six.png',
+        badge: 'Exclusive',
+        num: 'B1k',
+        title: 'Fast Lane Lottery',
+        price: '$14.40',
+        tickets: '95K+ Remaining',
+        days: '3 Days',
+    },
+];
 
 const DPAHomepage = observer(() => {
     useBetwinAssets();
@@ -245,68 +178,19 @@ const DPAHomepage = observer(() => {
     const go = (path: string) => history.push(path as any);
     const goLogin = () => (is_logged_in ? go('/challenge') : redirectToLogin(false, getLanguage()));
 
-    const contests = [
-        {
-            cat: 'Car',
-            img: 'car-four.png',
-            badge: 'Exclusive',
-            num: '9T2',
-            title: 'Treasure Draw',
-            price: '$12.85',
-            tickets: '95K+ Remaining',
-            days: '5 Days',
-        },
-        {
-            cat: 'Watch',
-            img: 'car-one.png',
-            badge: 'Exclusive',
-            num: '9T2',
-            title: 'Drive & Win',
-            price: '$12.85',
-            tickets: '95K+ Remaining',
-            days: '5 Days',
-        },
-        {
-            cat: 'Laptop',
-            img: 'car-two.png',
-            badge: 'Exclusive',
-            num: '5B2',
-            title: 'Wheel Triumph',
-            price: '$36.22',
-            tickets: '95K+ Remaining',
-            days: '7 Days',
-        },
-        {
-            cat: 'Car',
-            img: 'car-three.png',
-            badge: 'Exclusive',
-            num: '5B2',
-            title: 'Luxury Wheels',
-            price: '$36.22',
-            tickets: '95K+ Remaining',
-            days: '7 Days',
-        },
-        {
-            cat: 'Bike',
-            img: 'car-five.png',
-            badge: 'Exclusive',
-            num: 'R15',
-            title: 'Draw Treasure',
-            price: '$1420',
-            tickets: '95K+ Remaining',
-            days: '3 Days',
-        },
-        {
-            cat: 'Cycle',
-            img: 'car-six.png',
-            badge: 'Exclusive',
-            num: 'B1k',
-            title: 'Fast Lane Lottery',
-            price: '$14.40',
-            tickets: '95K+ Remaining',
-            days: '3 Days',
-        },
-    ];
+    const [activeFilter, setActiveFilter] = useState('*');
+    const lotterySliderRef = useRef<HTMLDivElement>(null);
+    const testiSliderRef = useRef<HTMLDivElement>(null);
+
+    const scrollSlider = (ref: React.RefObject<HTMLDivElement>, slideClass: string, dir: number) => {
+        const el = ref.current;
+        if (!el) return;
+        const slide = el.querySelector(`.${slideClass}`) as HTMLElement | null;
+        if (!slide) return;
+        el.scrollLeft += dir * (slide.offsetWidth + 24);
+    };
+
+    const filteredContests = activeFilter === '*' ? CONTESTS : CONTESTS.filter(c => c.cat === activeFilter);
 
     return (
         <div className='betwins-page'>
@@ -573,9 +457,7 @@ const DPAHomepage = observer(() => {
                 className='lottery-section-bg'
                 style={{ backgroundImage: `url('${IMG}lottery-bg.png')`, position: 'relative', overflow: 'hidden' }}
             >
-                {/* Decorative wheels — positions match WordPress elementor CSS:
-                    left-wheel.png → right:0, top:100px
-                    right-wheel.png → left:0, bottom:0 */}
+                {/* Decorative wheels */}
                 <div
                     className='elementor-absolute image-animation-up-down2'
                     style={{ position: 'absolute', right: 0, top: '100px', zIndex: 0, pointerEvents: 'none' }}
@@ -616,32 +498,24 @@ const DPAHomepage = observer(() => {
                             </div>
                         </div>
 
-                        {/* Lottery type Swiper slider */}
+                        {/* Lottery type slider — React scroll-snap slider */}
                         <div className='lottery__type-wrapper mb-25 mt-40'>
-                            <div className='lottery__type-slider swiper'>
-                                <div className='swiper-wrapper'>
-                                    {[
-                                        { img: 'image-slider-one.png', name: 'Euro Millions', price: '$657.54' },
-                                        { img: 'image-slider-four.png', name: 'Hot Lotto', price: '$657.54' },
-                                        { img: 'image-slider-two.png', name: 'OZ Lotto Star', price: '$657.54' },
-                                        { img: 'image-slider-three.png', name: 'Bingo Jackpot', price: '$657.54' },
-                                        { img: 'image-slider-four.png', name: 'Hot Lotto', price: '$657.54' },
-                                    ].map((lt, i) => (
-                                        <div key={i} className='swiper-slide'>
-                                            <div className='lottery__type lt-type-two'>
-                                                <div className='thumb'>
-                                                    <img src={`${IMG}${lt.img}`} alt='' />
-                                                </div>
-                                                <div className='content'>
-                                                    <h6 className='fw-6'>{lt.name}</h6>
-                                                    <p className='mt-16 text-lg'>
-                                                        <i className='ti ti-wallet' /> {lt.price}
-                                                    </p>
-                                                </div>
+                            <div className='dpa-lottery-slider' ref={lotterySliderRef}>
+                                {LOTTERY_ITEMS.map((lt, i) => (
+                                    <div key={i} className='dpa-lottery-slide'>
+                                        <div className='lottery__type lt-type-two'>
+                                            <div className='thumb'>
+                                                <img src={`${IMG}${lt.img}`} alt='' />
+                                            </div>
+                                            <div className='content'>
+                                                <h6 className='fw-6'>{lt.name}</h6>
+                                                <p className='mt-16 text-lg'>
+                                                    <i className='ti ti-wallet' /> {lt.price}
+                                                </p>
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
+                                    </div>
+                                ))}
                             </div>
                             <div className='slider-navigation'>
                                 <button
@@ -649,6 +523,7 @@ const DPAHomepage = observer(() => {
                                     aria-label='prev slide'
                                     title='prev slide'
                                     className='prev-lottery slider-btn'
+                                    onClick={() => scrollSlider(lotterySliderRef, 'dpa-lottery-slide', -1)}
                                 >
                                     <i className='fa-solid fa-angle-left' />
                                 </button>
@@ -657,6 +532,7 @@ const DPAHomepage = observer(() => {
                                     aria-label='next slide'
                                     title='next slide'
                                     className='next-lottery slider-btn'
+                                    onClick={() => scrollSlider(lotterySliderRef, 'dpa-lottery-slide', 1)}
                                 >
                                     <i className='fa-solid fa-angle-right' />
                                 </button>
@@ -791,7 +667,7 @@ const DPAHomepage = observer(() => {
             </div>
 
             {/* ── ABOUT ─────────────────────────────────────────────── */}
-            <div style={{ position: 'relative', paddingTop: '120px', paddingBottom: '90px', overflow: 'hidden' }}>
+            <div className='section-pad' style={{ position: 'relative', overflow: 'hidden' }}>
                 {/* Decorative */}
                 <div
                     className='elementor-absolute image-animation-up-down2'
@@ -809,7 +685,7 @@ const DPAHomepage = observer(() => {
                 <div className='container'>
                     <div className='row align-items-center'>
                         <div className='col-lg-6'>
-                            <div className='about-three__wrapper' style={{ marginLeft: '-45%' }}>
+                            <div className='about-three__wrapper'>
                                 <div className='authentication__thumb text-center d-none d-lg-block'>
                                     <div className='circle-img'>
                                         <img src={`${IMG}circle.png`} alt='' />
@@ -925,8 +801,8 @@ const DPAHomepage = observer(() => {
                                     ].map(([filter, label]) => (
                                         <li key={filter}>
                                             <button
-                                                data-filter={filter === '*' ? '*' : `.${filter}`}
-                                                className={filter === '*' ? 'active' : ''}
+                                                className={activeFilter === filter ? 'active' : ''}
+                                                onClick={() => setActiveFilter(filter)}
                                             >
                                                 <i className='ti ti-layout-grid' />
                                                 {label}
@@ -938,9 +814,9 @@ const DPAHomepage = observer(() => {
                         </div>
                     </div>
 
-                    <div className='row filter-wrapper mt-40' data-aos='fade-up' data-aos-duration='600'>
-                        {contests.map((c, i) => (
-                            <div key={i} className={`col-12 col-lg-6 col-xl-4 filter-item ${c.cat}`}>
+                    <div className='row mt-40' data-aos='fade-up' data-aos-duration='600'>
+                        {filteredContests.map((c, i) => (
+                            <div key={i} className='col-12 col-lg-6 col-xl-4'>
                                 <div className='result__single tilt'>
                                     <div className='contest__intro'>
                                         <span>{c.badge}</span>
@@ -1142,55 +1018,42 @@ const DPAHomepage = observer(() => {
                             </div>
                             <div className='testimonial testimonial-alt'>
                                 <div className='testimonial__content'>
-                                    <div className='testimonial__slider swiper'>
-                                        <div className='swiper-wrapper'>
-                                            {[
-                                                {
-                                                    img: 'testi-thumb01.png',
-                                                    name: 'Jhon Suria',
-                                                    role: 'Frontend Developer',
-                                                },
-                                                {
-                                                    img: 'testi-thumb02.png',
-                                                    name: 'Kiss Laura',
-                                                    role: 'Product Designer',
-                                                },
-                                                { img: 'testi-thumb03.png', name: 'Suphiya Khan', role: 'Pro Player' },
-                                                { img: 'testi-thumb04.png', name: 'Jhon Joshi', role: 'Senior Player' },
-                                            ].map((t, i) => (
-                                                <div key={i} className='swiper-slide'>
-                                                    <div className='testimonial__slider-single'>
-                                                        <div className='review mb-20'>
-                                                            {[1, 2, 3, 4, 5].map(n => (
-                                                                <i key={n} className='fa fa-star' />
-                                                            ))}
+                                    {/* Testimonial slider — React scroll-snap slider */}
+                                    <div className='dpa-testi-slider' ref={testiSliderRef}>
+                                        {TESTI_ITEMS.map((t, i) => (
+                                            <div key={i} className='dpa-testi-slide'>
+                                                <div className='testimonial__slider-single'>
+                                                    <div className='review mb-20'>
+                                                        {[1, 2, 3, 4, 5].map(n => (
+                                                            <i key={n} className='fa fa-star' />
+                                                        ))}
+                                                    </div>
+                                                    <blockquote className='text-xxl testi-description'>
+                                                        <q>
+                                                            Use receiving accounts a number a currencies and get paid
+                                                            like a local Use receivin accounts a number paid the most
+                                                            beautiful think
+                                                        </q>
+                                                    </blockquote>
+                                                    <div className='author__info mt-35'>
+                                                        <div className='thumb'>
+                                                            <img src={`${IMG}${t.img}`} alt='Image' />
                                                         </div>
-                                                        <blockquote className='text-xxl testi-description'>
-                                                            <q>
-                                                                Use receiving accounts a number a currencies and get
-                                                                paid like a local Use receivin accounts a number paid
-                                                                the most beautiful think
-                                                            </q>
-                                                        </blockquote>
-                                                        <div className='author__info mt-35'>
-                                                            <div className='thumb'>
-                                                                <img src={`${IMG}${t.img}`} alt='Image' />
-                                                            </div>
-                                                            <div className='content'>
-                                                                <p className='text-xl fw-6 testi-name mb-0'>{t.name}</p>
-                                                                <p className='testi-designation mb-0'>{t.role}</p>
-                                                            </div>
+                                                        <div className='content'>
+                                                            <p className='text-xl fw-6 testi-name mb-0'>{t.name}</p>
+                                                            <p className='testi-designation mb-0'>{t.role}</p>
                                                         </div>
                                                     </div>
                                                 </div>
-                                            ))}
-                                        </div>
+                                            </div>
+                                        ))}
                                     </div>
                                     <div className='slider-navigation mt-3'>
                                         <button
                                             type='button'
                                             aria-label='prev slide'
                                             className='prev-testimonial slider-btn'
+                                            onClick={() => scrollSlider(testiSliderRef, 'dpa-testi-slide', -1)}
                                         >
                                             <i className='fa-solid fa-angle-left' />
                                         </button>
@@ -1198,6 +1061,7 @@ const DPAHomepage = observer(() => {
                                             type='button'
                                             aria-label='next slide'
                                             className='next-testimonial slider-btn'
+                                            onClick={() => scrollSlider(testiSliderRef, 'dpa-testi-slide', 1)}
                                         >
                                             <i className='fa-solid fa-angle-right' />
                                         </button>

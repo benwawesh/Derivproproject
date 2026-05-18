@@ -26,61 +26,6 @@ type TTraderProfile = {
     total_trades: number;
 };
 
-const BETWIN_CSS = [
-    '/wp-content/uploads/elementor/google-fonts/css/chakrapetchb160.css',
-    '/wp-content/themes/betwins/assets/css/animate3517.css',
-    '/wp-content/themes/betwins/assets/css/aos3517.css',
-    '/wp-content/themes/betwins/assets/css/bootstrap.min3517.css',
-    '/wp-content/themes/betwins/assets/fonts/css/tabler-icons.min7a5f.css',
-    '/wp-content/themes/betwins/assets/css/magnific-popup3517.css',
-    '/wp-content/plugins/betwins-core/assets/css/nice-select7406.css',
-    '/wp-content/plugins/betwins-core/assets/css/odometer7406.css',
-    '/wp-content/plugins/betwins-core/assets/css/swiper-bundle.min7406.css',
-    '/wp-content/plugins/betwins-core/assets/css/main-style7406.css',
-    '/wp-content/plugins/elementor/assets/css/frontend.min8e60.css',
-    '/wp-content/plugins/elementor/assets/css/widget-image.min8e60.css',
-    '/wp-content/plugins/elementor/assets/css/widget-heading.min8e60.css',
-    '/wp-content/plugins/elementor/assets/css/widget-icon-box.min8e60.css',
-    '/wp-content/plugins/elementor/assets/lib/animations/styles/fadeInUp.min8e60.css',
-    '/wp-content/plugins/elementor/assets/lib/font-awesome/css/font-awesome.min1849.css',
-    '/wp-content/themes/betwins/assets/css/master3517.css',
-    '/wp-content/themes/betwins/assets/css/template-settings3517.css',
-    '/wp-content/themes/betwins/assets/css/main-style3517.css',
-    '/wp-content/themes/betwins/assets/css/responsive3517.css',
-    '/wp-content/uploads/elementor/css/post-149c2f.css',
-    '/wp-content/uploads/elementor/css/post-20052b45.css',
-];
-
-const BETWIN_JS = [
-    '/wp-includes/js/jquery/jquery.minf43b.js',
-    '/wp-includes/js/jquery/jquery-migrate.min5589.js',
-    '/wp-content/plugins/betwins-core/assets/js/aos0ba6.js',
-    '/wp-content/plugins/betwins-core/assets/js/gsap.min0ba6.js',
-    '/wp-content/plugins/betwins-core/assets/js/isotope.pkgd.min0ba6.js',
-    '/wp-content/plugins/betwins-core/assets/js/vanilla-tilt.min0ba6.js',
-    '/wp-content/plugins/betwins-core/assets/js/odometer.min20b9.js',
-    '/wp-content/plugins/betwins-core/assets/js/ScrollToPlugin.min20b9.js',
-    '/wp-content/plugins/betwins-core/assets/js/ScrollTrigger.min20b9.js',
-    '/wp-content/plugins/betwins-core/assets/js/SplitText.min20b9.js',
-    '/wp-content/plugins/betwins-core/assets/js/viewport.jquery20b9.js',
-    '/wp-content/plugins/betwins-core/assets/js/wow.minf39e.js',
-    '/wp-content/plugins/elementor/assets/lib/swiper/v8/swiper.min94a4.js',
-    '/wp-content/themes/betwins/assets/js/bootstrap.mince52.js',
-    '/wp-content/themes/betwins/assets/js/fontawesome.min8a54.js',
-    '/wp-content/plugins/betwins-core/assets/js/main3517.js',
-    '/wp-content/themes/betwins/assets/js/main3517.js',
-];
-
-if (typeof document !== 'undefined') {
-    BETWIN_CSS.forEach(href => {
-        if (document.querySelector(`style[data-betwin-src="${href}"]`)) return;
-        const style = document.createElement('style');
-        style.setAttribute('data-betwin-src', href);
-        style.textContent = `@import url("${href}") layer(betwin);`;
-        document.head.appendChild(style);
-    });
-}
-
 const TRADING_MARKETS = [
     {
         img: 'game-box-image-two.png',
@@ -326,119 +271,75 @@ function filterEntries(tabId: string, entries: any[]): any[] {
 
 function useBetwinLeaderboardAssets() {
     useEffect(() => {
-        BETWIN_CSS.forEach(href => {
-            if (document.querySelector(`style[data-betwin-src="${href}"]`)) return;
-            const style = document.createElement('style');
-            style.setAttribute('data-betwin-src', href);
-            // Load in a CSS layer so all unlayered DPA CSS always wins in cascade
-            style.textContent = `@import url("${href}") layer(betwin);`;
-            document.head.appendChild(style);
-        });
-
         let aosObserver: IntersectionObserver | null = null;
         let initTimer: ReturnType<typeof setTimeout> | null = null;
 
-        const loadScript = (src: string) =>
-            new Promise<void>(resolve => {
-                if (document.querySelector(`script[src="${src}"]`)) {
-                    resolve();
-                    return;
-                }
-                const s = document.createElement('script');
-                s.src = src;
-                s.async = false;
-                s.onload = () => resolve();
-                s.onerror = () => resolve();
-                document.body.appendChild(s);
-            });
-
-        (async () => {
-            const preMain = BETWIN_JS.slice(0, BETWIN_JS.length - 2);
-            const mainScripts = BETWIN_JS.slice(BETWIN_JS.length - 2);
-
-            for (const src of preMain) {
-                await loadScript(src);
-            }
-
-            const scrollContainer = document.getElementById('app_contents');
-            if ((window as any).gsap && (window as any).ScrollTrigger && scrollContainer) {
-                (window as any).ScrollTrigger.defaults({ scroller: scrollContainer });
-            }
-
-            for (const src of mainScripts) {
-                await loadScript(src);
-            }
-
-            initTimer = setTimeout(() => {
-                const w = window as any;
-
-                if (w.VanillaTilt) {
-                    w.VanillaTilt.init(document.querySelectorAll('.tilt'), { max: 5, speed: 3000 });
-                }
-
-                // Title char animation
-                const sc = document.getElementById('app_contents');
-                if (sc) {
-                    document.querySelectorAll('.title-animation').forEach((el: Element) => {
-                        if (el.querySelector('.title-char')) return;
-                        const text = (el.textContent || '').trim();
-                        if (!text) return;
-                        el.innerHTML = text
-                            .split('')
-                            .map((ch: string, i: number) => {
-                                if (ch === ' ')
-                                    return '<span style="display:inline-block;min-width:0.3em">&nbsp;</span>';
-                                const delay = (i * 0.04).toFixed(2);
-                                const tr = `opacity 0.6s cubic-bezier(0.34,1.56,0.64,1) ${delay}s,transform 0.6s cubic-bezier(0.34,1.56,0.64,1) ${delay}s`;
-                                const esc = ch === '&' ? '&amp;' : ch === '<' ? '&lt;' : ch === '>' ? '&gt;' : ch;
-                                return `<span class="title-char" data-tr="${tr}" style="display:inline-block;opacity:0;transform:translateX(40px);transition:${tr}">${esc}</span>`;
-                            })
-                            .join('');
-                        const io = new IntersectionObserver(
-                            entries => {
-                                entries.forEach(entry => {
-                                    const chars = Array.from(el.querySelectorAll('.title-char')) as HTMLElement[];
-                                    if (entry.isIntersecting) {
-                                        chars.forEach(span => {
-                                            span.style.opacity = '1';
-                                            span.style.transform = 'translateX(0)';
-                                        });
-                                    } else {
-                                        chars.forEach(span => {
-                                            span.style.transition = 'none';
-                                            span.style.opacity = '0';
-                                            span.style.transform = 'translateX(40px)';
-                                            requestAnimationFrame(() => {
-                                                span.style.transition = span.dataset.tr || '';
-                                            });
-                                        });
-                                    }
-                                });
-                            },
-                            { root: sc, threshold: 0.1 }
-                        );
-                        io.observe(el);
-                    });
-
-                    // AOS repeat on scroll
-                    aosObserver = new IntersectionObserver(
+        initTimer = setTimeout(() => {
+            const sc = document.getElementById('app_contents');
+            if (sc) {
+                document.querySelectorAll('.title-animation').forEach((el: Element) => {
+                    if (el.querySelector('.title-char')) return;
+                    const text = (el.textContent || '').trim();
+                    if (!text) return;
+                    let charIdx = 0;
+                    el.innerHTML = text
+                        .split(' ')
+                        .map((word: string) => {
+                            const wordHtml = word
+                                .split('')
+                                .map((ch: string) => {
+                                    const delay = (charIdx * 0.04).toFixed(2);
+                                    charIdx++;
+                                    const tr = `opacity 0.6s cubic-bezier(0.34,1.56,0.64,1) ${delay}s,transform 0.6s cubic-bezier(0.34,1.56,0.64,1) ${delay}s`;
+                                    const esc = ch === '&' ? '&amp;' : ch === '<' ? '&lt;' : ch === '>' ? '&gt;' : ch;
+                                    return `<span class="title-char" data-tr="${tr}" style="display:inline-block;opacity:0;transform:translateX(40px);transition:${tr}">${esc}</span>`;
+                                })
+                                .join('');
+                            return `<span style="display:inline-block;white-space:nowrap">${wordHtml}</span>`;
+                        })
+                        .join('<span style="display:inline-block;min-width:0.3em">&nbsp;</span>');
+                    const io = new IntersectionObserver(
                         entries => {
                             entries.forEach(entry => {
-                                if (entry.isIntersecting) entry.target.classList.add('aos-animate');
-                                else entry.target.classList.remove('aos-animate');
+                                const chars = Array.from(el.querySelectorAll('.title-char')) as HTMLElement[];
+                                if (entry.isIntersecting) {
+                                    chars.forEach(span => {
+                                        span.style.opacity = '1';
+                                        span.style.transform = 'translateX(0)';
+                                    });
+                                } else {
+                                    chars.forEach(span => {
+                                        span.style.transition = 'none';
+                                        span.style.opacity = '0';
+                                        span.style.transform = 'translateX(40px)';
+                                        requestAnimationFrame(() => {
+                                            span.style.transition = span.dataset.tr || '';
+                                        });
+                                    });
+                                }
                             });
                         },
-                        { root: sc, threshold: 0.05, rootMargin: '0px 0px -50px 0px' }
+                        { root: sc, threshold: 0.1 }
                     );
-                    document.querySelectorAll('[data-aos]').forEach(el => aosObserver!.observe(el));
-                }
-            }, 300);
-        })();
+                    io.observe(el);
+                });
+
+                aosObserver = new IntersectionObserver(
+                    entries => {
+                        entries.forEach(entry => {
+                            if (entry.isIntersecting) entry.target.classList.add('aos-animate');
+                            else entry.target.classList.remove('aos-animate');
+                        });
+                    },
+                    { root: sc, threshold: 0.05, rootMargin: '0px 0px -50px 0px' }
+                );
+                document.querySelectorAll('[data-aos]').forEach(el => aosObserver!.observe(el));
+            }
+        }, 300);
 
         return () => {
             if (initTimer) clearTimeout(initTimer);
             aosObserver?.disconnect();
-            // CSS and scripts persist intentionally — removing on unmount causes flicker.
         };
     }, []);
 }
@@ -601,7 +502,7 @@ const LeaderboardPage = () => {
 
             <div id='content' className='site-content'>
                 {/* ── Trading Market Cards ─────────────────────────────────────── */}
-                <div style={{ paddingTop: '120px', paddingBottom: '120px' }}>
+                <div className='section-pad'>
                     <div className='container'>
                         <div className='section__header text-center mb-55' data-aos='fade-up' data-aos-duration='1000'>
                             <span className='fw-6 secondary-text text-xl'>
@@ -661,13 +562,12 @@ const LeaderboardPage = () => {
 
                 {/* ── Recent Champions Section ─────────────────────────────────── */}
                 <div
+                    className='section-pad'
                     style={{
                         backgroundImage: 'url(/wp-content/uploads/2025/07/game-bg.png)',
                         backgroundSize: 'cover',
                         backgroundPosition: 'center center',
                         backgroundRepeat: 'no-repeat',
-                        paddingTop: '120px',
-                        paddingBottom: '120px',
                     }}
                 >
                     <div className='container'>

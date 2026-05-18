@@ -1,3 +1,29 @@
+// ── WordPress CSS loaded in a cascade layer so DPA unlayered styles always win ─
+// These run at CSS parse time — no JS race condition, no FOUC.
+@import url('/wp-content/uploads/elementor/google-fonts/css/chakrapetchb160.css') layer(betwin);
+@import url('/wp-content/themes/betwins/assets/css/animate3517.css') layer(betwin);
+@import url('/wp-content/themes/betwins/assets/css/aos3517.css') layer(betwin);
+@import url('/wp-content/themes/betwins/assets/css/bootstrap.min3517.css') layer(betwin);
+@import url('/wp-content/themes/betwins/assets/fonts/css/tabler-icons.min7a5f.css') layer(betwin);
+@import url('/wp-content/themes/betwins/assets/css/magnific-popup3517.css') layer(betwin);
+@import url('/wp-content/plugins/betwins-core/assets/css/nice-select7406.css') layer(betwin);
+@import url('/wp-content/plugins/betwins-core/assets/css/odometer7406.css') layer(betwin);
+@import url('/wp-content/plugins/betwins-core/assets/css/swiper-bundle.min7406.css') layer(betwin);
+@import url('/wp-content/plugins/betwins-core/assets/css/main-style7406.css') layer(betwin);
+@import url('/wp-content/plugins/elementor/assets/css/frontend.min8e60.css') layer(betwin);
+@import url('/wp-content/plugins/elementor/assets/css/widget-image.min8e60.css') layer(betwin);
+@import url('/wp-content/plugins/elementor/assets/css/widget-heading.min8e60.css') layer(betwin);
+@import url('/wp-content/plugins/elementor/assets/css/widget-icon-box.min8e60.css') layer(betwin);
+@import url('/wp-content/plugins/elementor/assets/lib/animations/styles/fadeInUp.min8e60.css') layer(betwin);
+@import url('/wp-content/plugins/elementor/assets/lib/font-awesome/css/font-awesome.min1849.css') layer(betwin);
+@import url('/wp-content/themes/betwins/assets/css/master3517.css') layer(betwin);
+@import url('/wp-content/themes/betwins/assets/css/template-settings3517.css') layer(betwin);
+@import url('/wp-content/themes/betwins/assets/css/main-style3517.css') layer(betwin);
+@import url('/wp-content/themes/betwins/assets/css/responsive3517.css') layer(betwin);
+@import url('/wp-content/uploads/elementor/css/post-149c2f.css') layer(betwin);
+@import url('/wp-content/uploads/elementor/css/post-155873.css') layer(betwin);
+@import url('/wp-content/uploads/elementor/css/post-20052b45.css') layer(betwin);
+
 // ── Scoped overrides so betwin CSS works inside the Deriv app ────────────────
 // All betwin CSS variables + rules target `body` and global elements.
 // We re-declare them scoped to .betwins-page so Deriv's CSS can't override.
@@ -103,6 +129,55 @@
 
     .lottery-section-bg {
         overflow: hidden;
+    }
+
+    // ── Section headings: clamp so they don't overflow on mobile ─────────────
+    .section__header h2,
+    .section__header h3 {
+        font-size: clamp(22px, 4.5vw, 42px);
+    }
+    .page-title {
+        font-size: clamp(24px, 5vw, 42px);
+    }
+
+    // ── About section: contain image within its column, no overflow bleed ───────
+    .about-three__wrapper {
+        margin-left: 0;
+        overflow: hidden;
+    }
+    .authentication__thumb {
+        position: relative;
+        overflow: hidden;
+        max-height: 480px;
+
+        img {
+            max-width: 100%;
+            height: auto;
+            object-fit: contain;
+        }
+    }
+
+    // ── Winner tables: horizontal scroll on small screens ─────────────────────
+    .winning-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+
+        table {
+            min-width: 460px;
+        }
+    }
+
+    // ── Champions tab row: scroll on mobile so 5 tabs don't wrap messily ──────
+    .ch-list__btns ul {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    .ch-tab-btn {
+        white-space: nowrap;
     }
 
     // ── Button: btn--link used for <button> tags replacing <a> "Play Now" ────
@@ -239,6 +314,10 @@
             padding-left: 0;
             padding-top: 20px;
         }
+        // Hide about image on tablet — not enough horizontal space
+        .about-three__wrapper {
+            display: none;
+        }
     }
 
     // ── Mobile (≤768px) ───────────────────────────────────────────────────────
@@ -288,6 +367,58 @@
         .result__tab-btns ul {
             border-radius: 12px;
         }
+
+        // Leaderboard champions tab row — scrollable on mobile
+        .ch-list__btns ul {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            justify-content: flex-start;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            &::-webkit-scrollbar {
+                display: none;
+            }
+        }
+
+        // Breadcrumb compact
+        .breadcrumb-wrap {
+            padding-top: 30px !important;
+            padding-bottom: 30px !important;
+        }
+
+        // Hero: move background to left so BINGO illustration slides out of view
+        .hero {
+            background-position: left center;
+
+            // Hide floating ball/rocket decoratives that overlap text on mobile
+            .ball-img-one,
+            .ball-img-two,
+            .ball-img-three,
+            .ball-img-four,
+            .rocket {
+                display: none !important;
+            }
+        }
+
+        // Ensure hero text sits above the background image
+        .hero__content {
+            position: relative;
+            z-index: 1;
+        }
+
+        // Hero CTA buttons: stack vertically and stretch full width
+        .banner-action {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: stretch;
+
+            .btn--primary,
+            .btn--secondary {
+                text-align: center;
+                justify-content: center;
+            }
+        }
     }
 
     // ── Small mobile (≤480px) ─────────────────────────────────────────────────
@@ -322,6 +453,48 @@
             flex-shrink: 0;
             padding: 8px 14px;
             font-size: 13px;
+        }
+    }
+
+    // ── React-based slider (replaces Swiper) ─────────────────────────────────
+    .dpa-lottery-slider {
+        display: flex;
+        gap: 24px;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        scroll-behavior: smooth;
+        scrollbar-width: none;
+        &::-webkit-scrollbar {
+            display: none;
+        }
+
+        .dpa-lottery-slide {
+            scroll-snap-align: start;
+            flex: 0 0 100%;
+
+            @media (min-width: 576px) {
+                flex: 0 0 calc(50% - 12px);
+            }
+            @media (min-width: 992px) {
+                flex: 0 0 calc(33.333% - 16px);
+            }
+        }
+    }
+
+    .dpa-testi-slider {
+        display: flex;
+        gap: 24px;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        scroll-behavior: smooth;
+        scrollbar-width: none;
+        &::-webkit-scrollbar {
+            display: none;
+        }
+
+        .dpa-testi-slide {
+            scroll-snap-align: start;
+            flex: 0 0 100%;
         }
     }
 }
